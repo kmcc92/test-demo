@@ -1,26 +1,103 @@
 @import "tailwindcss";
 
+@theme {
+  --font-display: var(--font-cormorant);
+  --font-sans: var(--font-dm-sans);
+  --font-mono: var(--font-ibm-mono);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f6f1;
+  --bg-dark: #080808;
+  --bg-dark-secondary: #111111;
+  --gold: #c9a84c;
+  --gold-light: #e8c96a;
+  --gold-dark: #8b6914;
+  --gold-gradient: linear-gradient(135deg, #b8922a 0%, #e8c96a 40%, #c9a84c 70%, #8b6914 100%);
+  --text-primary: #080808;
+  --text-secondary: #080808;
+  --text-muted: #080808;
+  --border: #e0e0e0;
+  --border-gold: #c9a84c;
+  --shadow-gold: 0 0 40px rgba(201, 168, 76, 0.12);
+  --on-dark: rgba(255, 255, 255, 0.9);
+  --on-dark-muted: rgba(255, 255, 255, 0.55);
+  --on-dark-subtle: rgba(255, 255, 255, 0.3);
+  --on-dark-faint: rgba(255, 255, 255, 0.2);
+  --border-on-dark: rgba(255, 255, 255, 0.06);
+  --overlay-black: rgba(0, 0, 0, 0.7);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+}
+
+/* Subtle grain overlay for luxury texture */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.022;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+@keyframes shimmer-slide {
+  from {
+    background-position: 200% center;
+  }
+  to {
+    background-position: -200% center;
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }

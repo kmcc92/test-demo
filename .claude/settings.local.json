@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"/ → %{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(curl -s -o /dev/null -w \"/exclusive → %{http_code}\\\\n\" http://localhost:3000/exclusive)",
+      "Bash(curl -s -o /dev/null -w \"/auctions/auction-001 → %{http_code}\\\\n\" http://localhost:3000/auctions/auction-001)",
+      "Bash(curl -s -o /dev/null -w \"/verify → %{http_code}\\\\n\" http://localhost:3000/verify)",
+      "Bash(curl -s http://localhost:3000/lookbook)",
+      "Bash(curl -s http://localhost:3000/journal)",
+      "WebSearch",
+      "WebFetch(domain:unsplash.com)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/library)",
+      "Bash(npm info *)",
+      "Bash(Get-Content *)",
+      "Bash(curl -s http://localhost:3000/ -o /dev/null -w \"%{http_code}\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(exit 0)",
+      "Bash(taskkill /PID 15920 /F)",
+      "PowerShell(Stop-Process *)",
+      "Bash(notepad *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('deps:', list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devdeps:', list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")"
+    ]
+  }
+}
