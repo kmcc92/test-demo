@@ -47,6 +47,9 @@ export default async function RootLayout({
       lang="en"
       className={`${cormorant.variable} ${dmSans.variable} ${ibmPlexMono.variable}`}
     >
+      <head>
+        <meta name="color-scheme" content="light" />
+      </head>
       <body className="min-h-screen flex flex-col">
         <Web3Provider cookie={cookie}>
           <ToastProvider>

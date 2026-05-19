@@ -10,7 +10,6 @@ const NAV_LINKS = [
   { href: "/shop", label: "Shop" },
   { href: "/exclusive", label: "Exclusive" },
   { href: "/auctions", label: "Auctions" },
-  { href: "/collection", label: "Collection" },
   { href: "/library", label: "Library" },
 ];
 

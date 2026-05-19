@@ -14,7 +14,14 @@ interface Web3ProviderProps {
 
 export default function Web3Provider({ children, cookie }: Web3ProviderProps) {
   // Computed once per mount — cookie is stable for the lifetime of this provider instance.
-  const [initialState] = useState(() => cookieToInitialState(wagmiConfig, cookie));
+  const [initialState] = useState(() => {
+    if (!cookie) return undefined;
+    if (typeof window !== "undefined") {
+      const session = localStorage.getItem("test_auth_v1");
+      if (!session) return undefined;
+    }
+    return cookieToInitialState(wagmiConfig, cookie);
+  });
   const [queryClient] = useState(() => new QueryClient());
 
   return (

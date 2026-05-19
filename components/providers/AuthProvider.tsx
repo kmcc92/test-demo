@@ -8,6 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { useDisconnect } from "wagmi";
 import { readSession, writeSession, deleteSession, type AuthSession } from "@/lib/auth-storage";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import type { CheckoutSession } from "@/lib/mock-checkout";
@@ -36,6 +37,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
 
+  const { disconnect: disconnectWallet } = useDisconnect();
+
   // Ref holds the OwnershipProvider's addOwnership function.
   // Using a ref avoids stale closures and doesn't trigger re-renders.
   const purchaseHandlerRef = useRef<((record: PurchaseRecord) => void) | null>(null);
@@ -55,7 +58,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     deleteSession();
     setUser(null);
-  }, []);
+    setCheckoutProduct(null);
+    setPendingProduct(null);
+    disconnectWallet();
+  }, [disconnectWallet]);
 
   const openAuth = useCallback((tab: "login" | "signup" = "signup") => {
     setAuthTab(tab);

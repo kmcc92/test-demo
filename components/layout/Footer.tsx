@@ -22,7 +22,6 @@ export default function Footer() {
               ["Shop", "/shop"],
               ["Exclusive", "/exclusive"],
               ["Auctions", "/auctions"],
-              ["Collection", "/collection"],
             ].map(([label, href]) => (
               <li key={href}>
                 <Link

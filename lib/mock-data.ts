@@ -157,7 +157,7 @@ export const AUCTIONS: Auction[] = [
     endDate: AUCTION_DATES.FEATURED,
     featured: true,
     type: "reserve",
-    certificateId: "TEST-GOLD-001",
+    certificateId: "TEST-AUC-001",
     description:
       "The original sample from the 2022 collection. Never worn. Accompanied by original pattern sheets and a signed certificate of authenticity.",
     bids: [
@@ -195,7 +195,7 @@ export const AUCTIONS: Auction[] = [
     endDate: AUCTION_DATES.AUCTION_2,
     featured: false,
     type: "reserve",
-    certificateId: "TEST-GOLD-002",
+    certificateId: "TEST-AUC-002",
     description:
       "First-generation leather piece from the original TEST collection. Exceptional provenance.",
     bids: [
@@ -221,7 +221,7 @@ export const AUCTIONS: Auction[] = [
     endDate: AUCTION_DATES.AUCTION_3,
     featured: false,
     type: "buy-now",
-    certificateId: "TEST-GOLD-003",
+    certificateId: "TEST-AUC-003",
     description:
       "The prototype bag from the opening season. Calfskin, hand-stitched. Unique piece.",
     bids: [
@@ -395,9 +395,8 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "Hand-cut from a single hide. The original tooling is no longer available; no reproduction is possible.",
     category: "accessories",
-    image: u("photo-1603906650843-b58e94d9df4d"),
+    image: u("photo-1507003211169-0a1dd7228f2d"),
     certificateId: "TEST-GOLD-011",
-    productId: "prod-001",
     salesHistory: [
       { date: "2021-07-22", price: 1800, owner: "Ren Nakamura" },
     ],
@@ -408,9 +407,8 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "16-gauge cashmere, hand-finished cuffs. Made before the Loro Piana sourcing agreement was established.",
     category: "knitwear",
-    image: u("photo-1574201635302-388dd92a4c3f"),
+    image: u("photo-1516762689617-e1cffcef479d"),
     certificateId: "TEST-GOLD-012",
-    productId: "prod-003",
     salesHistory: [
       { date: "2024-11-02", price: 4600, owner: "William Park" },
       { date: "2023-02-17", price: 3800, owner: "Private" },
@@ -423,9 +421,8 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "Made for the Paris showroom opening. One of three produced; the only piece to leave the atelier.",
     category: "outerwear",
-    image: u("photo-1619102814948-e164e584cf0c"),
+    image: u("photo-1512436991641-6745cdb1723f"),
     certificateId: "TEST-GOLD-013",
-    productId: "prod-002",
     salesHistory: [
       { date: "2025-06-01", price: 52000, owner: "Private" },
       { date: "2024-10-15", price: 47500, owner: "Ren Nakamura" },
@@ -452,9 +449,8 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "Pre-production derby. The Goodyear welt construction was refined over five iterations after this pair.",
     category: "footwear",
-    image: u("photo-1668069226492-508742b03147"),
+    image: u("photo-1558618666-fcd25c85cd64"),
     certificateId: "TEST-GOLD-015",
-    productId: "prod-004",
     salesHistory: [
       { date: "2025-03-14", price: 7200, owner: "Isabelle Fontaine" },
       { date: "2023-01-11", price: 5600, owner: "Private" },
@@ -466,9 +462,8 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "From the experimental bonding programme. No visible seams. One of the first bonded garments produced.",
     category: "tailoring",
-    image: u("photo-1603906650843-b58e94d9df4d"),
+    image: u("photo-1506794778202-cad84cf45f1d"),
     certificateId: "TEST-GOLD-016",
-    productId: "prod-001",
     salesHistory: [
       { date: "2023-06-30", price: 8900, owner: "Isabelle Fontaine" },
     ],
@@ -479,9 +474,8 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "Prototype for the bonded outerwear line. Unique fabrication never reproduced at commercial scale.",
     category: "outerwear",
-    image: u("photo-1619102814948-e164e584cf0c"),
+    image: u("photo-1490481651871-ab68de25d43d"),
     certificateId: "TEST-GOLD-017",
-    productId: "prod-002",
     salesHistory: [
       { date: "2025-09-08", price: 31000, owner: "Private" },
       { date: "2025-02-14", price: 26500, owner: "Thomas Brennan" },

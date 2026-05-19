@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
-import type { LibraryEntry, SaleRecord } from "@/lib/mock-data";
+import { PRODUCTS, type LibraryEntry, type SaleRecord } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,14 @@ interface LibraryContentProps {
   totalValue: number;
   years: string;
   totalTransactions: number;
+}
+
+// Returns the canonical product record for a library entry.
+// Searches regular products first, then exclusive — matches PRODUCTS array order.
+// Falls back to undefined when productId is absent (library-only archive entries).
+function getSourceItem(productId: string | undefined) {
+  if (!productId) return undefined;
+  return PRODUCTS.find((p) => p.id === productId);
 }
 
 function formatDate(iso: string) {
@@ -206,7 +214,7 @@ function DetailDrawer({
             {/* Image */}
             <div className="relative aspect-[4/3] flex-shrink-0 overflow-hidden" style={{ background: "#f0ede8" }}>
               <Image
-                src={entry.image}
+                src={getSourceItem(entry.productId)?.images[0] ?? entry.image}
                 alt={entry.name}
                 fill
                 className="object-cover"
@@ -430,7 +438,7 @@ function LibraryCard({
       style={isOwned ? { outline: "1px solid #C9A84C" } : undefined}
     >
       <Image
-        src={entry.image}
+        src={getSourceItem(entry.productId)?.images[0] ?? entry.image}
         alt={entry.name}
         fill
         className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"

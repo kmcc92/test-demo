@@ -7,6 +7,7 @@
 }
 
 :root {
+  color-scheme: light;
   --bg-primary: #ffffff;
   --bg-secondary: #f8f6f1;
   --bg-dark: #080808;
