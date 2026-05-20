@@ -65,7 +65,7 @@ export const PRODUCTS: Product[] = [
     id: "prod-001",
     name: "Cashmere Overcoat No. I",
     price: 3800,
-    images: [u("photo-1603906650843-b58e94d9df4d")],
+    images: ["https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=80"],
     category: "outerwear",
     stock_type: "regular",
     description:
@@ -75,7 +75,7 @@ export const PRODUCTS: Product[] = [
     id: "prod-002",
     name: "Worsted Wool Blazer",
     price: 2200,
-    images: [u("photo-1619102814948-e164e584cf0c")],
+    images: ["https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80"],
     category: "tailoring",
     stock_type: "regular",
     description:
@@ -85,7 +85,7 @@ export const PRODUCTS: Product[] = [
     id: "prod-003",
     name: "Merino Crew Pullover",
     price: 680,
-    images: [u("photo-1574201635302-388dd92a4c3f")],
+    images: ["https://images.unsplash.com/photo-1516762689617-e1cffcef479d?w=800&q=80"],
     category: "knitwear",
     stock_type: "regular",
     description: "12-gauge knit in superfine merino. Relaxed fit, ribbed cuffs.",
@@ -94,7 +94,7 @@ export const PRODUCTS: Product[] = [
     id: "prod-004",
     name: "Leather Derby No. III",
     price: 1150,
-    images: [u("photo-1668069226492-508742b03147")],
+    images: ["https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"],
     category: "footwear",
     stock_type: "regular",
     description: "Goodyear-welted. Calf leather upper, leather sole.",
@@ -103,7 +103,7 @@ export const PRODUCTS: Product[] = [
     id: "excl-001",
     name: "Archive Trench — Edition 001",
     price: 8500,
-    images: [u("photo-1617391258031-f8d80b22fb35")],
+    images: ["https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&q=80"],
     category: "outerwear",
     stock_type: "exclusive",
     edition: "001 / 010",
@@ -115,7 +115,7 @@ export const PRODUCTS: Product[] = [
     id: "excl-002",
     name: "Zero-Seam Coat — Edition 002",
     price: 12000,
-    images: [u("photo-1680690395101-1b2a56c0ac21")],
+    images: ["https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80"],
     category: "outerwear",
     stock_type: "exclusive",
     edition: "002 / 010",
@@ -127,7 +127,7 @@ export const PRODUCTS: Product[] = [
     id: "excl-003",
     name: "Leather Jacket — Edition 003",
     price: 9200,
-    images: [u("photo-1521223890158-f9f7c3d5d504")],
+    images: ["https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80"],
     category: "outerwear",
     stock_type: "exclusive",
     edition: "003 / 010",
@@ -139,7 +139,7 @@ export const PRODUCTS: Product[] = [
     id: "excl-004",
     name: "Silk Dress Shirt — Edition 004",
     price: 2800,
-    images: [u("photo-1621072156002-e2fccdc0b176")],
+    images: ["https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&q=80"],
     category: "tailoring",
     stock_type: "exclusive",
     edition: "004 / 010",
@@ -152,7 +152,7 @@ export const AUCTIONS: Auction[] = [
   {
     id: "auction-001",
     name: "Prototype Coat — Sample 0",
-    image: u("photo-1676716105765-e19fe6a01851"),
+    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80",
     currentBid: 24000,
     endDate: AUCTION_DATES.FEATURED,
     featured: true,
@@ -190,7 +190,7 @@ export const AUCTIONS: Auction[] = [
   {
     id: "auction-002",
     name: "Archive Leather Jacket — 1991",
-    image: u("photo-1602370463198-086436840055"),
+    image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=800&q=80",
     currentBid: 14500,
     endDate: AUCTION_DATES.AUCTION_2,
     featured: false,
@@ -216,7 +216,7 @@ export const AUCTIONS: Auction[] = [
   {
     id: "auction-003",
     name: "Debut Season Bag — Prototype",
-    image: u("photo-1584917865442-de89df76afd3"),
+    image: "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&q=80",
     currentBid: 8800,
     endDate: AUCTION_DATES.AUCTION_3,
     featured: false,
@@ -309,7 +309,7 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "Original sample from the 2019 opening season. Never commercially released. Single piece.",
     category: "outerwear",
-    image: u("photo-1617391258031-f8d80b22fb35"),
+    image: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&q=80",
     certificateId: "TEST-GOLD-005",
     productId: "excl-001",
     salesHistory: [
@@ -320,11 +320,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-002",
-    name: "Archive Wool Coat No. I",
+    name: "Archive Tote — Edition I",
     description:
-      "First production coat. Unlined, unfinished edges. Pre-authentication era piece, retroactively certified.",
+      "A structured carry piece from the archive collection. Hand-finished with premium hardware.",
     category: "outerwear",
-    image: u("photo-1680690395101-1b2a56c0ac21"),
+    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
     certificateId: "TEST-GOLD-006",
     productId: "excl-002",
     salesHistory: [
@@ -333,11 +333,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-003",
-    name: "Debut Season Trousers",
+    name: "Archive Knit Poncho No. I",
     description:
-      "Wide-leg construction from the inaugural collection. Unfinished seam allowance — an intentional detail.",
+      "An oversized knit silhouette from the early archive. One of twelve produced.",
     category: "tailoring",
-    image: u("photo-1603906650843-b58e94d9df4d"),
+    image: "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=80",
     certificateId: "TEST-GOLD-007",
     productId: "prod-001",
     salesHistory: [
@@ -347,11 +347,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-004",
-    name: "Hand-Stitched Overshirt",
+    name: "Structured Blazer No. II",
     description:
-      "Seven hours of hand-stitching per piece. Limited to three; only one certified and sold.",
+      "A single-button blazer in wool blend. Clean lapels, minimal construction.",
     category: "tailoring",
-    image: u("photo-1619102814948-e164e584cf0c"),
+    image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80",
     certificateId: "TEST-GOLD-008",
     productId: "prod-002",
     salesHistory: [
@@ -360,11 +360,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-005",
-    name: "FW20 Campaign Coat",
+    name: "FW20 Womenswear Campaign Piece",
     description:
-      "Worn in the inaugural campaign. Single piece, never duplicated. Accompanied by original campaign photography.",
+      "A casual silhouette from the FW20 campaign collection. Limited run.",
     category: "outerwear",
-    image: u("photo-1574201635302-388dd92a4c3f"),
+    image: "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?w=800&q=80",
     certificateId: "TEST-GOLD-009",
     productId: "prod-003",
     salesHistory: [
@@ -377,11 +377,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-006",
-    name: "Raw Silk Blazer",
+    name: "Archive Trainer No. I",
     description:
-      "Pre-production sample in experimental silk sourced from Suzhou. The fabric supply was never renewed.",
+      "A low-profile sneaker from the footwear archive. Clean construction, minimal branding.",
     category: "tailoring",
-    image: u("photo-1668069226492-508742b03147"),
+    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
     certificateId: "TEST-GOLD-010",
     productId: "prod-004",
     salesHistory: [
@@ -391,11 +391,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-007",
-    name: "Archive Leather Belt",
+    name: "FW21 Womenswear Second Edition",
     description:
-      "Hand-cut from a single hide. The original tooling is no longer available; no reproduction is possible.",
+      "A campaign piece from the second FW21 womenswear drop. Archive only.",
     category: "accessories",
-    image: u("photo-1507003211169-0a1dd7228f2d"),
+    image: "https://images.unsplash.com/photo-1467043237213-65f2da53396f?w=800&q=80",
     certificateId: "TEST-GOLD-011",
     salesHistory: [
       { date: "2021-07-22", price: 1800, owner: "Ren Nakamura" },
@@ -403,11 +403,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-008",
-    name: "Cashmere Roll-Neck No. I",
+    name: "Menswear Archive — Season III",
     description:
-      "16-gauge cashmere, hand-finished cuffs. Made before the Loro Piana sourcing agreement was established.",
+      "A foundational menswear piece from the third season archive collection.",
     category: "knitwear",
-    image: u("photo-1516762689617-e1cffcef479d"),
+    image: "https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?w=800&q=80",
     certificateId: "TEST-GOLD-012",
     salesHistory: [
       { date: "2024-11-02", price: 4600, owner: "William Park" },
@@ -417,11 +417,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-009",
-    name: "SS22 Atelier Coat",
+    name: "Archive Green Overshirt",
     description:
-      "Made for the Paris showroom opening. One of three produced; the only piece to leave the atelier.",
+      "A cotton overshirt in archive green. Produced in a single run of eight.",
     category: "outerwear",
-    image: u("photo-1512436991641-6745cdb1723f"),
+    image: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&q=80",
     certificateId: "TEST-GOLD-013",
     salesHistory: [
       { date: "2025-06-01", price: 52000, owner: "Private" },
@@ -432,11 +432,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-010",
-    name: "Hand-Dyed Linen Jacket",
+    name: "Archive Leather Jacket No. I",
     description:
-      "Natural indigo dye, each piece dyed differently. The shade carried by this certificate is unrepeatable.",
+      "A structured leather jacket from the archive. Full grain leather, minimal hardware.",
     category: "outerwear",
-    image: u("photo-1521223890158-f9f7c3d5d504"),
+    image: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80",
     certificateId: "TEST-GOLD-014",
     productId: "excl-003",
     salesHistory: [
@@ -445,11 +445,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-011",
-    name: "Archive Derby Prototype",
+    name: "Womenswear Casual Collection No. III",
     description:
-      "Pre-production derby. The Goodyear welt construction was refined over five iterations after this pair.",
+      "A double-breasted wool overcoat from the archive. Structured silhouette, horn buttons.",
     category: "footwear",
-    image: u("photo-1558618666-fcd25c85cd64"),
+    image: "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?w=800&q=80",
     certificateId: "TEST-GOLD-015",
     salesHistory: [
       { date: "2025-03-14", price: 7200, owner: "Isabelle Fontaine" },
@@ -458,11 +458,11 @@ export const LIBRARY: LibraryEntry[] = [
   },
   {
     id: "lib-012",
-    name: "Bonded Wool Trousers",
+    name: "Archive Roll-Neck Sweater",
     description:
-      "From the experimental bonding programme. No visible seams. One of the first bonded garments produced.",
+      "A fine gauge roll-neck in merino wool. Part of the knitwear archive series.",
     category: "tailoring",
-    image: u("photo-1506794778202-cad84cf45f1d"),
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80",
     certificateId: "TEST-GOLD-016",
     salesHistory: [
       { date: "2023-06-30", price: 8900, owner: "Isabelle Fontaine" },
@@ -474,7 +474,7 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "Prototype for the bonded outerwear line. Unique fabrication never reproduced at commercial scale.",
     category: "outerwear",
-    image: u("photo-1490481651871-ab68de25d43d"),
+    image: "https://images.unsplash.com/photo-1617391258031-f8d80b22fb35?w=800&q=80",
     certificateId: "TEST-GOLD-017",
     salesHistory: [
       { date: "2025-09-08", price: 31000, owner: "Private" },
@@ -488,7 +488,7 @@ export const LIBRARY: LibraryEntry[] = [
     description:
       "First dress shirt produced by TEST. Hand-rolled collar, mother-of-pearl buttons from a discontinued supplier.",
     category: "tailoring",
-    image: u("photo-1621072156002-e2fccdc0b176"),
+    image: "https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&q=80",
     certificateId: "TEST-GOLD-018",
     productId: "excl-004",
     salesHistory: [
