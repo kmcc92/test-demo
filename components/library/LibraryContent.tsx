@@ -491,6 +491,18 @@ function LibraryCard({
         </div>
       )}
 
+      {/* NOT FOR SALE badge — archive-only entries (no productId) */}
+      {!entry.productId && !isOwned && (
+        <div className="absolute top-2 right-2 z-10">
+          <span
+            className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] px-2 py-0.5"
+            style={{ color: "#ffffff", border: "1px solid rgba(255,255,255,0.5)", background: "rgba(8,8,8,0.75)" }}
+          >
+            Not For Sale
+          </span>
+        </div>
+      )}
+
       {/* Hover reveal — subtle gold ring */}
       <div className="absolute inset-0 ring-inset ring-1 ring-[--gold] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
 
