@@ -63,45 +63,45 @@ export interface JournalEntry {
 export const PRODUCTS: Product[] = [
   {
     id: "prod-001",
-    name: "Cashmere Overcoat No. I",
+    name: "Archive Knit Poncho No. I",
     price: 3800,
     images: ["https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=80"],
     category: "outerwear",
     stock_type: "regular",
     description:
-      "Single-breasted construction in Italian cashmere. Unlined, drop-shouldered.",
+      "An oversized knit silhouette from the early archive. One of twelve produced.",
   },
   {
     id: "prod-002",
-    name: "Worsted Wool Blazer",
+    name: "Structured Blazer No. II",
     price: 2200,
     images: ["https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80"],
     category: "tailoring",
     stock_type: "regular",
     description:
-      "Two-button, peak lapel. Cut from a 130s worsted wool sourced in Biella.",
+      "A single-button blazer in wool blend. Clean lapels, minimal construction.",
   },
   {
     id: "prod-003",
-    name: "Merino Crew Pullover",
+    name: "FW20 Womenswear Campaign Piece",
     price: 680,
     images: ["https://images.unsplash.com/photo-1516762689617-e1cffcef479d?w=800&q=80"],
     category: "knitwear",
     stock_type: "regular",
-    description: "12-gauge knit in superfine merino. Relaxed fit, ribbed cuffs.",
+    description: "A casual silhouette from the FW20 campaign collection. Limited run.",
   },
   {
     id: "prod-004",
-    name: "Leather Derby No. III",
+    name: "Archive Trainer No. I",
     price: 1150,
     images: ["https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"],
     category: "footwear",
     stock_type: "regular",
-    description: "Goodyear-welted. Calf leather upper, leather sole.",
+    description: "A low-profile sneaker from the footwear archive. Clean construction, minimal branding.",
   },
   {
     id: "excl-001",
-    name: "Archive Trench — Edition 001",
+    name: "SS19 Prototype Jacket — Edition 001",
     price: 8500,
     images: ["https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&q=80"],
     category: "outerwear",
@@ -109,11 +109,11 @@ export const PRODUCTS: Product[] = [
     edition: "001 / 010",
     certificateId: "TEST-GOLD-001",
     description:
-      "Reissued from the 2019 archive. Cotton gabardine, hand-finished, certified on-chain.",
+      "A sample jacket from the SS19 atelier archive. One of one.",
   },
   {
     id: "excl-002",
-    name: "Zero-Seam Coat — Edition 002",
+    name: "Archive Tote — Edition 002",
     price: 12000,
     images: ["https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80"],
     category: "outerwear",
@@ -121,11 +121,11 @@ export const PRODUCTS: Product[] = [
     edition: "002 / 010",
     certificateId: "TEST-GOLD-002",
     description:
-      "Bonded wool, heat-fused seams. No visible stitching. One of ten.",
+      "A structured carry piece from the archive collection. Hand-finished with premium hardware.",
   },
   {
     id: "excl-003",
-    name: "Leather Jacket — Edition 003",
+    name: "Archive Leather Jacket — Edition 003",
     price: 9200,
     images: ["https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80"],
     category: "outerwear",
@@ -133,7 +133,7 @@ export const PRODUCTS: Product[] = [
     edition: "003 / 010",
     certificateId: "TEST-GOLD-003",
     description:
-      "Nappa lambskin, washed finish. Signed and numbered interior lining.",
+      "A structured leather jacket from the archive. Full grain leather, minimal hardware.",
   },
   {
     id: "excl-004",
@@ -144,14 +144,14 @@ export const PRODUCTS: Product[] = [
     stock_type: "exclusive",
     edition: "004 / 010",
     certificateId: "TEST-GOLD-004",
-    description: "Hand-rolled collar, mother-of-pearl buttons. Charmeuse silk.",
+    description: "A hand-finished silk dress shirt from the archive. Eight produced.",
   },
 ];
 
 export const AUCTIONS: Auction[] = [
   {
     id: "auction-001",
-    name: "Prototype Coat — Sample 0",
+    name: "Celebrity Worn Collection No. I",
     image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80",
     currentBid: 24000,
     endDate: AUCTION_DATES.FEATURED,
@@ -159,7 +159,7 @@ export const AUCTIONS: Auction[] = [
     type: "reserve",
     certificateId: "TEST-AUC-001",
     description:
-      "The original sample from the 2022 collection. Never worn. Accompanied by original pattern sheets and a signed certificate of authenticity.",
+      "A signature piece worn by a notable figure. Authenticated and certified. One of one.",
     bids: [
       {
         id: "bid-001",
@@ -189,7 +189,7 @@ export const AUCTIONS: Auction[] = [
   },
   {
     id: "auction-002",
-    name: "Archive Leather Jacket — 1991",
+    name: "Celebrity Worn Collection No. II",
     image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?w=800&q=80",
     currentBid: 14500,
     endDate: AUCTION_DATES.AUCTION_2,
@@ -197,7 +197,7 @@ export const AUCTIONS: Auction[] = [
     type: "reserve",
     certificateId: "TEST-AUC-002",
     description:
-      "First-generation leather piece from the original TEST collection. Exceptional provenance.",
+      "A second signature piece from the celebrity archive. Fully authenticated with provenance chain.",
     bids: [
       {
         id: "bid-005",
@@ -215,7 +215,7 @@ export const AUCTIONS: Auction[] = [
   },
   {
     id: "auction-003",
-    name: "Debut Season Bag — Prototype",
+    name: "Celebrity Worn Suit — Authenticated",
     image: "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&q=80",
     currentBid: 8800,
     endDate: AUCTION_DATES.AUCTION_3,
@@ -223,7 +223,7 @@ export const AUCTIONS: Auction[] = [
     type: "buy-now",
     certificateId: "TEST-AUC-003",
     description:
-      "The prototype bag from the opening season. Calfskin, hand-stitched. Unique piece.",
+      "A tailored mens suit worn at a major public event. Certified and archived. Unique piece.",
     bids: [
       {
         id: "bid-007",

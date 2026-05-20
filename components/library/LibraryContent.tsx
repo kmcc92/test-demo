@@ -560,24 +560,6 @@ export default function LibraryContent({
           protocol. Click any piece to view provenance.
         </p>
 
-        {/* Stats strip */}
-        <div className="mt-10 flex flex-wrap gap-10">
-          {[
-            ["Authenticated Pieces", String(entries.length)],
-            ["Total Transactions", String(totalTransactions)],
-            ["Years Active", years],
-            ["Total Certified Value", formatPrice(totalValue)],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <p className="text-[9px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[--on-dark-subtle] mb-1.5">
-                {label}
-              </p>
-              <p className="font-[family-name:var(--font-ibm-mono)] text-lg text-white">
-                {value}
-              </p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Card grid */}
