@@ -17,7 +17,7 @@ export interface Product {
   price: number;
   images: string[];
   sizes?: string[];
-  category: "outerwear" | "tailoring" | "knitwear" | "footwear" | "accessories";
+  category: "outerwear" | "tops" | "footwear" | "accessories";
   stock_type: "regular" | "exclusive";
   edition?: string;
   certificateId?: string;
@@ -87,7 +87,7 @@ export const PRODUCTS: Product[] = [
       "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=800&q=80",
     ],
     sizes: ["S", "M", "L", "XL"],
-    category: "tailoring",
+    category: "tops",
     stock_type: "regular",
     description:
       "A single-button blazer in wool blend. Clean lapels, minimal construction.",
@@ -102,7 +102,7 @@ export const PRODUCTS: Product[] = [
       "https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&q=80",
     ],
     sizes: ["XS", "S", "M", "L"],
-    category: "knitwear",
+    category: "tops",
     stock_type: "regular",
     description: "A casual silhouette from the FW20 campaign collection. Limited run.",
   },
@@ -137,7 +137,7 @@ export const PRODUCTS: Product[] = [
     name: "Archive Tote — Edition 002",
     price: 12000,
     images: ["https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80"],
-    category: "outerwear",
+    category: "accessories",
     stock_type: "exclusive",
     edition: "002 / 010",
     certificateId: "TEST-GOLD-002",
@@ -161,7 +161,7 @@ export const PRODUCTS: Product[] = [
     name: "Silk Dress Shirt — Edition 004",
     price: 2800,
     images: ["https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&q=80"],
-    category: "tailoring",
+    category: "tops",
     stock_type: "exclusive",
     edition: "004 / 010",
     certificateId: "TEST-GOLD-004",
