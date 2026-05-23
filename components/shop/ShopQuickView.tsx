@@ -26,6 +26,8 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
   const reduced = useReducedMotion();
   const [phase, setPhase] = useState<Phase>("view");
   const [order, setOrder] = useState<ShopOrder | null>(null);
+  const [activeImage, setActiveImage] = useState(0);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -38,12 +40,12 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
     return () => { document.body.style.overflow = ""; };
   }, [product]);
 
-  // Reset state when drawer closes
+  // Reset state when product changes or drawer closes
   useEffect(() => {
-    if (!product) {
-      setPhase("view");
-      setOrder(null);
-    }
+    setPhase("view");
+    setOrder(null);
+    setActiveImage(0);
+    setSelectedSize(null);
   }, [product]);
 
   function handleBuyNow() {
@@ -108,10 +110,10 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
               {/* Image */}
               <div style={{ position: "relative", flexShrink: 0, background: "#f0ede8", aspectRatio: "4/3", overflow: "hidden" }}>
                 <Image
-                  src={product.images[0]}
+                  src={product.images[activeImage]}
                   alt={product.name}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-opacity duration-300"
                   sizes="420px"
                 />
                 <button
@@ -139,6 +141,32 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
                 </button>
               </div>
 
+              {/* Thumbnails */}
+              {product.images.length > 1 && (
+                <div style={{ display: "flex", gap: "8px", padding: "12px 16px", background: "#faf9f7", flexShrink: 0 }}>
+                  {product.images.map((src, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveImage(i)}
+                      style={{
+                        position: "relative",
+                        width: "64px",
+                        height: "64px",
+                        flexShrink: 0,
+                        border: i === activeImage ? "1px solid var(--gold)" : "1px solid #e0e0e0",
+                        cursor: "pointer",
+                        background: "#f0ede8",
+                        overflow: "hidden",
+                        transition: "border-color 0.2s",
+                      }}
+                      aria-label={`View image ${i + 1}`}
+                    >
+                      <Image src={src} alt="" fill className="object-cover" sizes="64px" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Details */}
               <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "32px" }}>
                 <h2 style={{ fontFamily: "var(--font-cormorant), serif", fontSize: "28px", fontWeight: 300, color: "#080808", letterSpacing: "0.04em", lineHeight: 1.2 }}>
@@ -155,17 +183,63 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
                   {product.description}
                 </p>
 
+                {/* Size selector */}
+                {product.sizes && product.sizes.length > 0 && (
+                  <div style={{ marginTop: "24px" }}>
+                    <p style={{ fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans)", color: "#8a8a8a", marginBottom: "10px" }}>
+                      {selectedSize ? `Size — ${selectedSize}` : "Select Size"}
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                      {product.sizes.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(size === selectedSize ? null : size)}
+                          style={{
+                            height: "36px",
+                            minWidth: "44px",
+                            padding: "0 12px",
+                            fontSize: "11px",
+                            letterSpacing: "0.08em",
+                            fontFamily: "var(--font-dm-sans)",
+                            cursor: "pointer",
+                            background: size === selectedSize ? "var(--gold)" : "#ffffff",
+                            color: size === selectedSize ? "#ffffff" : "#080808",
+                            border: size === selectedSize ? "1px solid var(--gold)" : "1px solid #e0e0e0",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ marginTop: "auto", paddingTop: "32px", display: "flex", flexDirection: "column", gap: "12px" }}>
                   <motion.button
                     onClick={handleBuyNow}
+                    disabled={!!(product.sizes && product.sizes.length > 0 && !selectedSize)}
                     whileHover={reduced ? {} : { scale: 1.02 }}
                     whileTap={reduced ? {} : { scale: 0.99 }}
                     className="w-full h-14 px-10 text-sm tracking-widest uppercase font-[family-name:var(--font-dm-sans)] transition-colors duration-300"
-                    style={{ background: "#ffffff", color: "var(--gold)", border: "1px solid var(--gold)" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--gold)"; e.currentTarget.style.color = "#ffffff"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; e.currentTarget.style.color = "var(--gold)"; }}
+                    style={{
+                      background: (product.sizes && product.sizes.length > 0 && !selectedSize) ? "#f5f5f5" : "#ffffff",
+                      color: (product.sizes && product.sizes.length > 0 && !selectedSize) ? "#aaaaaa" : "var(--gold)",
+                      border: (product.sizes && product.sizes.length > 0 && !selectedSize) ? "1px solid #e0e0e0" : "1px solid var(--gold)",
+                      cursor: (product.sizes && product.sizes.length > 0 && !selectedSize) ? "not-allowed" : "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (product.sizes && product.sizes.length > 0 && !selectedSize) return;
+                      e.currentTarget.style.background = "var(--gold)";
+                      e.currentTarget.style.color = "#ffffff";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (product.sizes && product.sizes.length > 0 && !selectedSize) return;
+                      e.currentTarget.style.background = "#ffffff";
+                      e.currentTarget.style.color = "var(--gold)";
+                    }}
                   >
-                    Buy Now
+                    {product.sizes && product.sizes.length > 0 && !selectedSize ? "Select a Size" : "Buy Now"}
                   </motion.button>
                   <motion.button
                     onClick={onClose}

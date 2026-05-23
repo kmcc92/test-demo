@@ -16,6 +16,7 @@ export interface Product {
   name: string;
   price: number;
   images: string[];
+  sizes?: string[];
   category: "outerwear" | "tailoring" | "knitwear" | "footwear" | "accessories";
   stock_type: "regular" | "exclusive";
   edition?: string;
@@ -65,7 +66,12 @@ export const PRODUCTS: Product[] = [
     id: "prod-001",
     name: "Archive Knit Poncho No. I",
     price: 3800,
-    images: ["https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=80"],
+    images: [
+      "https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&q=80",
+      "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800&q=80",
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80",
+    ],
+    sizes: ["XS", "S", "M", "L", "XL"],
     category: "outerwear",
     stock_type: "regular",
     description:
@@ -75,7 +81,12 @@ export const PRODUCTS: Product[] = [
     id: "prod-002",
     name: "Structured Blazer No. II",
     price: 2200,
-    images: ["https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80"],
+    images: [
+      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80",
+      "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=800&q=80",
+      "https://images.unsplash.com/photo-1594938298603-c8148c4b5b8f?w=800&q=80",
+    ],
+    sizes: ["36", "38", "40", "42", "44"],
     category: "tailoring",
     stock_type: "regular",
     description:
@@ -85,7 +96,12 @@ export const PRODUCTS: Product[] = [
     id: "prod-003",
     name: "FW20 Womenswear Campaign Piece",
     price: 680,
-    images: ["https://images.unsplash.com/photo-1516762689617-e1cffcef479d?w=800&q=80"],
+    images: [
+      "https://images.unsplash.com/photo-1516762689617-e1cffcef479d?w=800&q=80",
+      "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?w=800&q=80",
+      "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=800&q=80",
+    ],
+    sizes: ["XS", "S", "M", "L"],
     category: "knitwear",
     stock_type: "regular",
     description: "A casual silhouette from the FW20 campaign collection. Limited run.",
@@ -94,7 +110,12 @@ export const PRODUCTS: Product[] = [
     id: "prod-004",
     name: "Archive Trainer No. I",
     price: 1150,
-    images: ["https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80"],
+    images: [
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
+      "https://images.unsplash.com/photo-1608231387042-66d1773d3028?w=800&q=80",
+      "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80",
+    ],
+    sizes: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
     category: "footwear",
     stock_type: "regular",
     description: "A low-profile sneaker from the footwear archive. Clean construction, minimal branding.",
