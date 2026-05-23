@@ -5,7 +5,6 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { Product } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/utils";
-import GoldButton from "@/components/ui/GoldButton";
 import ShopCheckoutModal from "./ShopCheckoutModal";
 import ShopOrderConfirmModal, { type ShopOrder } from "./ShopOrderConfirmModal";
 
@@ -157,17 +156,25 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
                 </p>
 
                 <div style={{ marginTop: "auto", paddingTop: "32px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <GoldButton
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
+                  <motion.button
                     onClick={handleBuyNow}
+                    whileHover={reduced ? {} : { scale: 1.02 }}
+                    whileTap={reduced ? {} : { scale: 0.99 }}
+                    className="w-full h-14 px-10 text-sm tracking-widest uppercase font-[family-name:var(--font-dm-sans)] transition-colors duration-300"
+                    style={{ background: "#ffffff", color: "var(--gold)", border: "1px solid var(--gold)" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--gold)"; e.currentTarget.style.color = "#ffffff"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; e.currentTarget.style.color = "var(--gold)"; }}
                   >
                     Buy Now
-                  </GoldButton>
-                  <GoldButton variant="outline" size="md" className="w-full" onClick={onClose}>
+                  </motion.button>
+                  <motion.button
+                    onClick={onClose}
+                    whileHover={reduced ? {} : { scale: 1.02 }}
+                    whileTap={reduced ? {} : { scale: 0.99 }}
+                    className="w-full h-11 px-6 text-xs tracking-widest uppercase font-[family-name:var(--font-dm-sans)] bg-transparent text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--gold)] transition-colors duration-300"
+                  >
                     Continue Shopping
-                  </GoldButton>
+                  </motion.button>
                 </div>
               </div>
             </motion.aside>

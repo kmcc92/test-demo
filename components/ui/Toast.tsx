@@ -58,7 +58,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 toast.variant === "gold" &&
                   "bg-[var(--bg-dark)] text-[var(--gold)] border border-[var(--border-gold)]",
                 toast.variant === "error" && "bg-red-950 text-red-400 border border-red-800",
-                toast.variant === "neutral" && "bg-[var(--bg-dark)] text-white border border-[rgba(255,255,255,0.1)]"
+                toast.variant === "neutral" && "bg-[var(--text-primary)] text-[var(--bg-primary)] border border-[var(--border)]"
               )}
             >
               {toast.message}

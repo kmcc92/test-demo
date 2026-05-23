@@ -32,7 +32,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
           <button
             onClick={() => onQuickView(product)}
-            className="w-full py-2.5 text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] bg-[var(--bg-dark)] text-white"
+            className="w-full py-2.5 text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)]" style={{ background: "rgba(255,255,255,0.85)", color: "var(--gold)" }}
           >
             Quick View
           </button>
