@@ -54,12 +54,15 @@ export function readOrders(email: string): StoredOrder[] {
 
 export function saveOrder(
   email: string,
-  partial: Omit<StoredOrder, "trackingNumber" | "estimatedDelivery">
+  partial: Omit<StoredOrder, "trackingNumber" | "estimatedDelivery"> & {
+    trackingNumber?: string;
+    estimatedDelivery?: string;
+  }
 ): StoredOrder {
   const order: StoredOrder = {
     ...partial,
-    trackingNumber: generateTrackingNumber(),
-    estimatedDelivery: estimatedDeliveryDate(partial.purchasedAt),
+    trackingNumber: partial.trackingNumber ?? generateTrackingNumber(),
+    estimatedDelivery: partial.estimatedDelivery ?? estimatedDeliveryDate(partial.purchasedAt),
   };
   if (typeof window !== "undefined") {
     try {

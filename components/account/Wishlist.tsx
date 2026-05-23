@@ -7,21 +7,12 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useAuth } from "@/hooks/useAuth";
 import { formatPrice } from "@/lib/utils";
 import type { Product } from "@/lib/mock-data";
-import ShopCheckoutModal from "@/components/shop/ShopCheckoutModal";
+import ShopCheckoutModal, { type CheckoutResult } from "@/components/shop/ShopCheckoutModal";
 import ShopOrderConfirmModal, { type ShopOrder } from "@/components/shop/ShopOrderConfirmModal";
 import { saveOrder } from "@/lib/order-storage";
 
 interface WishlistProps {
   onPurchaseComplete?: () => void;
-}
-
-function generateOrderId(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const rand = (n: number) =>
-    Array.from({ length: n }, () =>
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join("");
-  return `ORD-${rand(4)}-${rand(4)}`;
 }
 
 export default function Wishlist({ onPurchaseComplete }: WishlistProps) {
@@ -45,23 +36,24 @@ export default function Wishlist({ onPurchaseComplete }: WishlistProps) {
       }
     : null;
 
-  function handleConfirm() {
+  function handleConfirm(result: CheckoutResult) {
     if (!checkoutItem || !user?.email) return;
-    const orderId = generateOrderId();
-    const purchasedAt = new Date().toISOString();
     saveOrder(user.email, {
-      orderId,
+      orderId: result.orderId,
       productId: checkoutItem.productId,
       productName: checkoutItem.productName,
       price: checkoutItem.price,
-      purchasedAt,
+      size: result.size,
+      purchasedAt: result.purchasedAt,
+      trackingNumber: result.trackingNumber,
+      estimatedDelivery: result.shippingMethod.eta,
     });
     setConfirmedOrder({
-      orderId,
+      orderId: result.orderId,
       productId: checkoutItem.productId,
       productName: checkoutItem.productName,
       price: checkoutItem.price,
-      purchasedAt,
+      purchasedAt: result.purchasedAt,
     });
     setCheckoutProductId(null);
   }

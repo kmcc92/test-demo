@@ -7,19 +7,12 @@ import type { Product } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { saveOrder } from "@/lib/order-storage";
-import ShopCheckoutModal from "./ShopCheckoutModal";
+import ShopCheckoutModal, { type CheckoutResult } from "./ShopCheckoutModal";
 import ShopOrderConfirmModal, { type ShopOrder } from "./ShopOrderConfirmModal";
 
 interface ShopQuickViewProps {
   product: Product | null;
   onClose: () => void;
-}
-
-function generateOrderId(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const rand = (n: number) =>
-    Array.from({ length: n }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  return `ORD-${rand(4)}-${rand(4)}`;
 }
 
 type Phase = "view" | "checkout" | "confirmed";
@@ -60,21 +53,21 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
     setPhase("checkout");
   }
 
-  function handleConfirm() {
+  function handleConfirm(result: CheckoutResult) {
     if (!product) return;
-    const orderId = generateOrderId();
-    const purchasedAt = new Date().toISOString();
     if (user?.email) {
       saveOrder(user.email, {
-        orderId,
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        size: selectedSize ?? undefined,
-        purchasedAt,
+        orderId:          result.orderId,
+        productId:        product.id,
+        productName:      product.name,
+        price:            product.price,
+        size:             result.size,
+        purchasedAt:      result.purchasedAt,
+        trackingNumber:   result.trackingNumber,
+        estimatedDelivery: result.shippingMethod.eta,
       });
     }
-    setOrder({ orderId, productId: product.id, productName: product.name, price: product.price, purchasedAt });
+    setOrder({ orderId: result.orderId, productId: product.id, productName: product.name, price: product.price, purchasedAt: result.purchasedAt });
     setPhase("confirmed");
   }
 
@@ -268,6 +261,7 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
       {product && phase === "checkout" && (
         <ShopCheckoutModal
           product={product}
+          selectedSize={selectedSize ?? undefined}
           onConfirm={handleConfirm}
           onClose={() => setPhase("view")}
         />
