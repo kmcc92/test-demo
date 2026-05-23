@@ -56,17 +56,18 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(255,255,255,0.88)",
+            background: "transparent",
             border: "none",
             cursor: "pointer",
             zIndex: 1,
+            padding: 0,
           }}
         >
-          <svg width="14" height="13" viewBox="0 0 14 13" fill="none" aria-hidden>
+          <svg width="16" height="15" viewBox="0 0 14 13" fill="none" aria-hidden>
             <path
               d="M7 12C7 12 0.75 8.25 0.75 4.25C0.75 2.32 2.32 0.75 4.25 0.75C5.33 0.75 6.3 1.22 7 1.98C7.7 1.22 8.67 0.75 9.75 0.75C11.68 0.75 13.25 2.32 13.25 4.25C13.25 8.25 7 12 7 12Z"
-              fill={wishlisted ? "#080808" : "none"}
-              stroke="#080808"
+              fill={wishlisted ? "#ffffff" : "none"}
+              stroke="#ffffff"
               strokeWidth="1"
               strokeLinecap="round"
               strokeLinejoin="round"
