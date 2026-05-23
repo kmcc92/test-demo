@@ -5,6 +5,8 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { Product } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { saveOrder } from "@/lib/order-storage";
 import ShopCheckoutModal from "./ShopCheckoutModal";
 import ShopOrderConfirmModal, { type ShopOrder } from "./ShopOrderConfirmModal";
 
@@ -24,6 +26,7 @@ type Phase = "view" | "checkout" | "confirmed";
 
 export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) {
   const reduced = useReducedMotion();
+  const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>("view");
   const [order, setOrder] = useState<ShopOrder | null>(null);
   const [activeImage, setActiveImage] = useState(0);
@@ -59,14 +62,19 @@ export default function ShopQuickView({ product, onClose }: ShopQuickViewProps) 
 
   function handleConfirm() {
     if (!product) return;
-    const newOrder: ShopOrder = {
-      orderId: generateOrderId(),
-      productId: product.id,
-      productName: product.name,
-      price: product.price,
-      purchasedAt: new Date().toISOString(),
-    };
-    setOrder(newOrder);
+    const orderId = generateOrderId();
+    const purchasedAt = new Date().toISOString();
+    if (user?.email) {
+      saveOrder(user.email, {
+        orderId,
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        size: selectedSize ?? undefined,
+        purchasedAt,
+      });
+    }
+    setOrder({ orderId, productId: product.id, productName: product.name, price: product.price, purchasedAt });
     setPhase("confirmed");
   }
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import PurchaseHistory from "@/components/account/PurchaseHistory";
 import PaymentMethods from "@/components/account/PaymentMethods";
+import Wishlist from "@/components/account/Wishlist";
+import OrderTracking from "@/components/account/OrderTracking";
 import GoldButton from "@/components/ui/GoldButton";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -34,6 +36,7 @@ export default function AccountPage() {
   const { user, isLoaded, logout } = useAuth();
   const { isConnected, truncatedAddress, connect, disconnect } = useWallet();
   const [walletMounted, setWalletMounted] = useState(false);
+  const [orderRefreshKey, setOrderRefreshKey] = useState(0);
 
   useEffect(() => { setWalletMounted(true); }, []);
 
@@ -113,6 +116,22 @@ export default function AccountPage() {
             </GoldButton>
           </div>
         )}
+      </section>
+
+      <div className="border-t border-[var(--border)] my-16" />
+
+      {/* ── Saved Items ──────────────────────────────── */}
+      <section>
+        <SectionHeading>Saved Items</SectionHeading>
+        <Wishlist onPurchaseComplete={() => setOrderRefreshKey((k) => k + 1)} />
+      </section>
+
+      <div className="border-t border-[var(--border)] my-16" />
+
+      {/* ── Shop Orders ──────────────────────────────── */}
+      <section>
+        <SectionHeading>Shop Orders</SectionHeading>
+        <OrderTracking refreshKey={orderRefreshKey} />
       </section>
 
       <div className="border-t border-[var(--border)] my-16" />
