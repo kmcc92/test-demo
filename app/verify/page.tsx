@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useId } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -96,17 +96,17 @@ function ProvenanceRow({
       initial={reduced ? {} : { opacity: 0, y: 8 }}
       animate={reduced ? {} : { opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.8 + index * 0.1 }}
-      className="flex items-start justify-between py-3 border-b border-[--border] last:border-0"
+      className="flex items-start justify-between py-3 border-b border-[var(--border)] last:border-0"
     >
       <div className="flex flex-col gap-0.5">
-        <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+        <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
           {action}
         </span>
-        <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+        <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
           {owner.startsWith("0x") ? formatAddress(owner) : owner}
         </span>
       </div>
-      <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-muted] shrink-0 ml-4">
+      <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-muted)] shrink-0 ml-4">
         {date}
       </span>
     </motion.div>
@@ -127,31 +127,31 @@ function BlockchainPanel({
       transition={{ duration: 0.4, delay: 0.9 }}
       className="mt-6"
     >
-      <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-3">
+      <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3">
         On-Chain Record
       </p>
-      <div className="border border-[--border] p-5 space-y-3">
+      <div className="border border-[var(--border)] p-5 space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
             Network
           </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
             {data.network}
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
             Block
           </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
             {data.blockNumber.toLocaleString("en-US")}
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
             Timestamp
           </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
             {new Date(data.timestamp).toLocaleDateString("en-US", {
               year: "numeric",
               month: "short",
@@ -160,22 +160,22 @@ function BlockchainPanel({
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
             Contract
           </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
             {formatAddress(data.contractAddress)}
           </span>
         </div>
-        <div className="flex justify-between items-center pt-1 border-t border-[--border]">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+        <div className="flex justify-between items-center pt-1 border-t border-[var(--border)]">
+          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
             Transaction
           </span>
           <a
             href={getEtherscanUrl(data.txHash)}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--gold] hover:underline underline-offset-2 transition-colors"
+            className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--gold)] hover:underline underline-offset-2 transition-colors"
           >
             {formatTxHash(data.txHash)} ↗
           </a>
@@ -210,7 +210,7 @@ function ResultCard({
         animate="animate"
         exit="exit"
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-lg mx-auto mt-10 border border-[--border-gold] p-8"
+        className="w-full max-w-lg mx-auto mt-10 border border-[var(--border-gold)] p-8"
       >
         <GoldCheckmark reduced={reduced} />
 
@@ -220,10 +220,10 @@ function ResultCard({
           transition={{ duration: 0.4, delay: 0.4 }}
           className="text-center mb-8"
         >
-          <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[--gold] mb-2">
+          <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)] mb-2">
             Authenticated
           </p>
-          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[--text-primary] tracking-wide">
+          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
             {result.itemName}
           </h2>
         </motion.div>
@@ -232,37 +232,37 @@ function ResultCard({
           initial={reduced ? {} : { opacity: 0 }}
           animate={reduced ? {} : { opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.6 }}
-          className="space-y-3 mb-8 border border-[--border] p-5"
+          className="space-y-3 mb-8 border border-[var(--border)] p-5"
         >
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Certificate
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--gold]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--gold)]">
               {result.certificateId}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Edition
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
               {result.edition}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Minted
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
               {result.mintDate}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Owner
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
               {result.owner ? formatAddress(result.owner) : "—"}
             </span>
           </div>
@@ -273,10 +273,10 @@ function ResultCard({
             initial={reduced ? {} : { opacity: 0, y: 8 }}
             animate={reduced ? {} : { opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.65 }}
-            className="flex items-center justify-center gap-2 py-3 mb-6 border border-[--border-gold] bg-[rgba(201,168,76,0.06)]"
+            className="flex items-center justify-center gap-2 py-3 mb-6 border border-[var(--border-gold)] bg-[rgba(201,168,76,0.06)]"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[--gold]" />
-            <span className="text-[10px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[--gold]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)]" />
+            <span className="text-[10px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)]">
               You Own This Piece
             </span>
           </motion.div>
@@ -288,10 +288,10 @@ function ResultCard({
             animate={reduced ? {} : { opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.7 }}
           >
-            <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-3">
+            <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3">
               Provenance
             </p>
-            <div className="border border-[--border]">
+            <div className="border border-[var(--border)]">
               {result.provenance.map((p, i) => (
                 <ProvenanceRow
                   key={i}
@@ -340,7 +340,7 @@ function ResultCard({
           <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-red-400 mb-2">
             Flagged — Reported Stolen
           </p>
-          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[--text-primary] tracking-wide">
+          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
             {result.itemName}
           </h2>
         </div>
@@ -378,15 +378,15 @@ function ResultCard({
           <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-amber-500 mb-2">
             Certificate Revoked
           </p>
-          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[--text-primary] tracking-wide">
+          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
             {result.itemName}
           </h2>
         </div>
         <div className="border border-amber-900/30 p-4">
-          <p className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-2">
+          <p className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-2">
             Reason
           </p>
-          <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[--text-secondary] leading-relaxed">
+          <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[var(--text-secondary)] leading-relaxed">
             {result.revokedReason}
           </p>
         </div>
@@ -402,44 +402,44 @@ function ResultCard({
         animate="animate"
         exit="exit"
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="w-full max-w-lg mx-auto mt-10 border border-[--border-gold]/50 p-8"
+        className="w-full max-w-lg mx-auto mt-10 border border-[var(--border-gold)]/50 p-8"
       >
-        <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 border border-[--border-gold]">
+        <div className="flex items-center justify-center w-16 h-16 mx-auto mb-6 border border-[var(--border-gold)]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
             <circle cx="12" cy="12" r="10" stroke="var(--gold)" strokeWidth="1.5" opacity="0.6" />
             <path d="M8 12H16M13 9L16 12L13 15" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
           </svg>
         </div>
         <div className="text-center mb-6">
-          <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[--gold]/70 mb-2">
+          <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)]/70 mb-2">
             Transferred
           </p>
-          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[--text-primary] tracking-wide">
+          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
             {result.itemName}
           </h2>
         </div>
-        <div className="border border-[--border] p-5 space-y-3">
+        <div className="border border-[var(--border)] p-5 space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Current Owner
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
               {result.owner ? formatAddress(result.owner) : "—"}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Previous Owner
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-muted]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-muted)]">
               {result.previousOwner ? formatAddress(result.previousOwner) : "—"}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Edition
             </span>
-            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-secondary]">
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
               {result.edition}
             </span>
           </div>
@@ -456,15 +456,15 @@ function ResultCard({
       animate="animate"
       exit="exit"
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="w-full max-w-lg mx-auto mt-10 border border-[--border] p-8 text-center"
+      className="w-full max-w-lg mx-auto mt-10 border border-[var(--border)] p-8 text-center"
     >
-      <p className="font-[family-name:var(--font-ibm-mono)] text-xs text-[--text-muted] mb-3">
+      <p className="font-[family-name:var(--font-ibm-mono)] text-xs text-[var(--text-muted)] mb-3">
         {result.certificateId}
       </p>
-      <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+      <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
         Certificate Not Found
       </p>
-      <p className="mt-4 text-sm font-[family-name:var(--font-dm-sans)] text-[--text-muted] leading-relaxed">
+      <p className="mt-4 text-sm font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] leading-relaxed">
         No record found for this identifier. Verify the certificate ID is correct.
       </p>
     </motion.div>
@@ -523,10 +523,10 @@ export default function VerifyPage() {
         transition={{ duration: 0.6, ease: "easeOut" }}
         className="text-center mb-16"
       >
-        <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-4">
+        <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-4">
           Certificate Verification
         </p>
-        <h1 className="font-[family-name:var(--font-cormorant)] text-4xl md:text-5xl font-light text-[--text-primary] tracking-wide">
+        <h1 className="font-[family-name:var(--font-cormorant)] text-4xl md:text-5xl font-light text-[var(--text-primary)] tracking-wide">
           Verify Ownership
         </h1>
       </motion.div>
@@ -540,7 +540,7 @@ export default function VerifyPage() {
       >
         <label
           htmlFor={inputId}
-          className="block text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-3"
+          className="block text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3"
         >
           Certificate ID
         </label>
@@ -555,7 +555,7 @@ export default function VerifyPage() {
             placeholder="TEST-GOLD-001"
             autoComplete="off"
             spellCheck={false}
-            className="flex-1 h-12 px-4 border border-[--border] bg-transparent font-[family-name:var(--font-ibm-mono)] text-sm text-[--text-primary] placeholder:text-[--text-muted] focus:outline-none focus:border-[--gold] transition-colors disabled:opacity-60"
+            className="flex-1 h-12 px-4 border border-[var(--border)] bg-transparent font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--gold)] transition-colors disabled:opacity-60"
           />
           <GoldButton
             variant="primary"
@@ -595,7 +595,7 @@ export default function VerifyPage() {
           >
             <button
               onClick={handleReset}
-              className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] hover:text-[--text-primary] transition-colors duration-200 underline underline-offset-4"
+              className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors duration-200 underline underline-offset-4"
             >
               Verify Another
             </button>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
@@ -17,7 +17,7 @@ export default function HeroSection() {
         className="relative flex flex-col items-center"
       >
         <div className="relative overflow-hidden">
-          <h1 className="font-[family-name:var(--font-cormorant)] text-[18vw] md:text-[14vw] lg:text-[12vw] font-light leading-none tracking-[0.4em] text-[--text-primary] select-none">
+          <h1 className="font-[family-name:var(--font-cormorant)] text-[18vw] md:text-[14vw] lg:text-[12vw] font-light leading-none tracking-[0.4em] text-[var(--text-primary)] select-none">
             TEST
           </h1>
 
@@ -42,7 +42,7 @@ export default function HeroSection() {
           initial={reduced ? {} : { opacity: 0 }}
           animate={reduced ? {} : { opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-          className="mt-6 text-[10px] md:text-xs tracking-[0.35em] uppercase text-[--text-muted] font-[family-name:var(--font-dm-sans)]"
+          className="mt-6 text-[10px] md:text-xs tracking-[0.35em] uppercase text-[var(--text-muted)] font-[family-name:var(--font-dm-sans)]"
         >
           Every piece authenticated
         </motion.p>
@@ -74,9 +74,9 @@ export default function HeroSection() {
         transition={{ duration: 1, delay: 1.8 }}
         className="absolute bottom-10 flex flex-col items-center gap-2"
       >
-        <div className="w-px h-8 bg-[--border] relative overflow-hidden">
+        <div className="w-px h-8 bg-[var(--border)] relative overflow-hidden">
           <motion.div
-            className="absolute top-0 left-0 right-0 h-full bg-[--gold]"
+            className="absolute top-0 left-0 right-0 h-full bg-[var(--gold)]"
             animate={{ y: ["0%", "100%"] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeIn" }}
           />

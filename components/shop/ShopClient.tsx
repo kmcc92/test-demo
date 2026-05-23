@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -37,7 +37,7 @@ export default function ShopClient({ products }: ShopClientProps) {
       <div className="flex gap-12 items-start">
         {/* Filter sidebar — desktop */}
         <aside className="w-36 shrink-0 hidden md:block sticky top-24">
-          <p className="text-[9px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-primary] mb-5">
+          <p className="text-[9px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-primary)] mb-5">
             Category
           </p>
           <ul className="space-y-3">
@@ -47,8 +47,8 @@ export default function ShopClient({ products }: ShopClientProps) {
                   onClick={() => setActiveFilter(cat)}
                   className={`text-xs font-[family-name:var(--font-dm-sans)] transition-colors duration-150 text-left w-full ${
                     activeFilter === cat
-                      ? "text-[--text-primary] border-b border-[--text-primary] pb-px"
-                      : "text-[--text-primary] hover:text-[--gold]"
+                      ? "text-[var(--text-primary)] border-b border-[var(--text-primary)] pb-px"
+                      : "text-[var(--text-primary)] hover:text-[var(--gold)]"
                   }`}
                 >
                   {cat}
@@ -66,8 +66,8 @@ export default function ShopClient({ products }: ShopClientProps) {
               onClick={() => setActiveFilter(cat)}
               className={`shrink-0 text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] pb-1 transition-colors ${
                 activeFilter === cat
-                  ? "text-[--text-primary] border-b border-[--text-primary]"
-                  : "text-[--text-primary] hover:text-[--gold]"
+                  ? "text-[var(--text-primary)] border-b border-[var(--text-primary)]"
+                  : "text-[var(--text-primary)] hover:text-[var(--gold)]"
               }`}
             >
               {cat}
@@ -77,7 +77,7 @@ export default function ShopClient({ products }: ShopClientProps) {
 
         {/* Product grid */}
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-primary] mb-8">
+          <p className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-primary)] mb-8">
             {filtered.length} {filtered.length === 1 ? "piece" : "pieces"}
           </p>
 

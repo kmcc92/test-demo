@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -31,7 +31,7 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
               transition={{ duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
               whileHover={reduced ? {} : { scale: 1.015 }}
               onClick={() => setSelected(product)}
-              className="group relative bg-[--bg-dark] text-left cursor-pointer p-6 flex flex-col"
+              className="group relative bg-[var(--bg-dark)] text-left cursor-pointer p-6 flex flex-col"
               style={owned ? { outline: "1px solid #C9A84C" } : undefined}
             >
               {/* Badge row */}
@@ -49,7 +49,7 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
               </div>
 
               {/* Image area */}
-              <div className="relative aspect-[3/4] bg-[--bg-dark-secondary] mb-5 overflow-hidden">
+              <div className="relative aspect-[3/4] bg-[var(--bg-dark-secondary)] mb-5 overflow-hidden">
                 <Image
                   src={product.images[0]}
                   alt={product.name}
@@ -67,14 +67,14 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
 
               {/* Details */}
               <div className="flex-1 flex flex-col gap-2">
-                <h2 className="font-[family-name:var(--font-cormorant)] text-lg font-light text-white tracking-wide leading-tight">
+                <h2 className="font-[family-name:var(--font-cormorant)] text-lg font-light text-[var(--text-primary)] tracking-wide leading-tight">
                   {product.name}
                 </h2>
                 <div className="flex items-center justify-between mt-auto pt-3 border-t border-[rgba(255,255,255,0.06)]">
-                  <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[--gold]">
+                  <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--gold)]">
                     {formatPrice(product.price)}
                   </span>
-                  <span className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[rgba(255,255,255,0.3)] group-hover:text-[--gold] transition-colors">
+                  <span className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] group-hover:text-[var(--gold)] transition-colors">
                     {owned ? "Owned →" : "View →"}
                   </span>
                 </div>

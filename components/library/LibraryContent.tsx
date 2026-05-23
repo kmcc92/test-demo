@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -433,7 +433,7 @@ function LibraryCard({
       viewport={{ once: true, margin: "-40px" }}
       transition={{ duration: 0.5, delay: Math.min(index * 0.04, 0.28), ease: "easeOut" }}
       whileHover={reduced ? {} : { scale: 1.02 }}
-      className="relative aspect-[3/4] overflow-hidden bg-[--bg-dark-secondary] group cursor-pointer text-left"
+      className="relative aspect-[3/4] overflow-hidden bg-[var(--bg-dark-secondary)] group cursor-pointer text-left"
       aria-label={`View ${entry.name}`}
       style={isOwned ? { outline: "1px solid #C9A84C" } : undefined}
     >
@@ -504,7 +504,7 @@ function LibraryCard({
       )}
 
       {/* Hover reveal — subtle gold ring */}
-      <div className="absolute inset-0 ring-inset ring-1 ring-[--gold] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
+      <div className="absolute inset-0 ring-inset ring-1 ring-[var(--gold)] opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
 
       <PriceStrip entry={entry} ownedPrice={ownedPrice} />
     </motion.button>
@@ -558,16 +558,16 @@ export default function LibraryContent({
   }, [selected, purchases]);
 
   return (
-    <div className="min-h-full bg-[--bg-dark] flex-1">
+    <div className="min-h-full bg-[var(--bg-dark)] flex-1">
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-8 pt-16 pb-14 border-b border-[--border-on-dark]">
-        <p className="text-[10px] tracking-[0.45em] uppercase font-[family-name:var(--font-dm-sans)] text-[--gold] mb-5">
+      <div className="max-w-7xl mx-auto px-8 pt-16 pb-14 border-b border-[var(--border-on-dark)]">
+        <p className="text-[10px] tracking-[0.45em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)] mb-5">
           Authentication Archive
         </p>
-        <h1 className="font-[family-name:var(--font-cormorant)] text-6xl md:text-7xl font-light text-white tracking-wide mb-6">
+        <h1 className="font-[family-name:var(--font-cormorant)] text-6xl md:text-7xl font-light text-[var(--text-primary)] tracking-wide mb-6">
           Library
         </h1>
-        <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[--on-dark-muted] max-w-xl leading-relaxed">
+        <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[var(--on-dark-muted)] max-w-xl leading-relaxed">
           A permanent record of every piece to pass through the TEST authentication
           protocol. Click any piece to view provenance.
         </p>
@@ -606,8 +606,8 @@ export default function LibraryContent({
       </div>
 
       {/* Footer */}
-      <div className="max-w-7xl mx-auto px-8 pb-16 border-t border-[--border-on-dark] pt-8">
-        <p className="text-[10px] font-[family-name:var(--font-ibm-mono)] text-[--on-dark-subtle] leading-relaxed max-w-xl">
+      <div className="max-w-7xl mx-auto px-8 pb-16 border-t border-[var(--border-on-dark)] pt-8">
+        <p className="text-[10px] font-[family-name:var(--font-ibm-mono)] text-[var(--on-dark-subtle)] leading-relaxed max-w-xl">
           All entries are sealed on the Polygon network and cannot be altered.
           Each certificate ID is a permanent, on-chain record of ownership and provenance.
         </p>

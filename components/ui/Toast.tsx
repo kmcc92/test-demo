@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   createContext,
@@ -56,9 +56,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               className={cn(
                 "px-6 py-3 text-xs tracking-widest uppercase font-[family-name:var(--font-dm-sans)]",
                 toast.variant === "gold" &&
-                  "bg-[--bg-dark] text-[--gold] border border-[--border-gold]",
+                  "bg-[var(--bg-dark)] text-[var(--gold)] border border-[var(--border-gold)]",
                 toast.variant === "error" && "bg-red-950 text-red-400 border border-red-800",
-                toast.variant === "neutral" && "bg-[--bg-dark] text-white border border-[rgba(255,255,255,0.1)]"
+                toast.variant === "neutral" && "bg-[var(--bg-dark)] text-white border border-[rgba(255,255,255,0.1)]"
               )}
             >
               {toast.message}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useId } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -33,10 +33,10 @@ function formatExpiry(raw: string): string {
 }
 
 const INPUT_CLASS =
-  "w-full h-11 px-4 border border-[--border] bg-transparent font-[family-name:var(--font-ibm-mono)] text-sm text-[--text-primary] placeholder:text-[--text-muted] focus:outline-none focus:border-[--gold] transition-colors";
+  "w-full h-11 px-4 border border-[var(--border)] bg-transparent font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--gold)] transition-colors";
 
 const LABEL_CLASS =
-  "block text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-1.5";
+  "block text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-1.5";
 
 export default function PaymentMethods({ email }: PaymentMethodsProps) {
   const reduced = useReducedMotion();
@@ -90,7 +90,7 @@ export default function PaymentMethods({ email }: PaymentMethodsProps) {
     <div>
       {/* Saved cards list */}
       {cards.length > 0 && (
-        <div className="border border-[--border] mb-6">
+        <div className="border border-[var(--border)] mb-6">
           <AnimatePresence initial={false}>
             {cards.map((card, i) => (
               <motion.div
@@ -100,23 +100,23 @@ export default function PaymentMethods({ email }: PaymentMethodsProps) {
                 exit={reduced ? {} : { opacity: 0, height: 0 }}
                 transition={{ duration: 0.22 }}
                 className={`flex items-center justify-between px-6 py-4 ${
-                  i < cards.length - 1 ? "border-b border-[--border]" : ""
+                  i < cards.length - 1 ? "border-b border-[var(--border)]" : ""
                 }`}
               >
                 <div className="flex items-center gap-5">
-                  <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] w-20">
+                  <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] w-20">
                     {CARD_LABEL[card.cardType]}
                   </span>
-                  <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[--text-primary]">
+                  <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--text-primary)]">
                     •••• {card.lastFour}
                   </span>
-                  <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[--text-muted]">
+                  <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-muted)]">
                     {card.expiry}
                   </span>
                 </div>
                 <button
                   onClick={() => handleDelete(card.id)}
-                  className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] hover:text-red-400 transition-colors duration-200"
+                  className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] hover:text-red-400 transition-colors duration-200"
                 >
                   Remove
                 </button>
@@ -127,7 +127,7 @@ export default function PaymentMethods({ email }: PaymentMethodsProps) {
       )}
 
       {cards.length === 0 && !showForm && (
-        <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-6">
+        <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-6">
           No payment methods saved.
         </p>
       )}
@@ -143,7 +143,7 @@ export default function PaymentMethods({ email }: PaymentMethodsProps) {
             transition={{ duration: 0.25 }}
             onSubmit={handleAdd}
             noValidate
-            className="border border-[--border] p-6 mb-6"
+            className="border border-[var(--border)] p-6 mb-6"
           >
             <div className="space-y-4">
               <div>

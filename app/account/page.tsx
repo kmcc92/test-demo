@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ import GoldButton from "@/components/ui/GoldButton";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-8">
+    <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-8">
       {children}
     </p>
   );
@@ -18,11 +18,11 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center py-4 border-b border-[--border]">
-      <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+    <div className="flex justify-between items-center py-4 border-b border-[var(--border)]">
+      <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
         {label}
       </span>
-      <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[--text-primary]">
+      <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--text-primary)]">
         {value}
       </span>
     </div>
@@ -54,10 +54,10 @@ export default function AccountPage() {
 
       {/* Page header */}
       <div className="mb-16">
-        <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted] mb-3">
+        <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3">
           TEST Member
         </p>
-        <h1 className="font-[family-name:var(--font-cormorant)] text-5xl md:text-6xl font-light text-[--text-primary] tracking-wide">
+        <h1 className="font-[family-name:var(--font-cormorant)] text-5xl md:text-6xl font-light text-[var(--text-primary)] tracking-wide">
           My Account
         </h1>
       </div>
@@ -78,7 +78,7 @@ export default function AccountPage() {
         </GoldButton>
       </section>
 
-      <div className="border-t border-[--border] my-16" />
+      <div className="border-t border-[var(--border)] my-16" />
 
       {/* ── Wallet ───────────────────────────────────── */}
       <section>
@@ -86,13 +86,13 @@ export default function AccountPage() {
         {!walletMounted ? null : isConnected ? (
           <div>
             <div className="mb-8">
-              <div className="flex justify-between items-center py-4 border-b border-[--border]">
-                <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[--text-muted]">
+              <div className="flex justify-between items-center py-4 border-b border-[var(--border)]">
+                <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
                   Address
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[--gold] shrink-0" />
-                  <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[--text-primary]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] shrink-0" />
+                  <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--text-primary)]">
                     {truncatedAddress}
                   </span>
                 </div>
@@ -105,7 +105,7 @@ export default function AccountPage() {
           </div>
         ) : (
           <div>
-            <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[--text-muted] leading-relaxed mb-6">
+            <p className="text-sm font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] leading-relaxed mb-6">
               Connect a wallet to enable blockchain authentication on your purchases.
             </p>
             <GoldButton variant="primary" size="md" onClick={connect}>
@@ -115,7 +115,7 @@ export default function AccountPage() {
         )}
       </section>
 
-      <div className="border-t border-[--border] my-16" />
+      <div className="border-t border-[var(--border)] my-16" />
 
       {/* ── Purchase History ─────────────────────────── */}
       <section>
@@ -123,7 +123,7 @@ export default function AccountPage() {
         <PurchaseHistory />
       </section>
 
-      <div className="border-t border-[--border] my-16" />
+      <div className="border-t border-[var(--border)] my-16" />
 
       {/* ── Payment Methods ───────────────────────────── */}
       <section>

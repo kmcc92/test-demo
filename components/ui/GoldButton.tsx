@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion, useReducedMotion } from "framer-motion";
 import { type ButtonHTMLAttributes, forwardRef } from "react";
@@ -21,11 +21,11 @@ const GoldButton = forwardRef<HTMLButtonElement, GoldButtonProps>(
       "relative inline-flex items-center justify-center font-[family-name:var(--font-dm-sans)] tracking-widest uppercase text-xs transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
 
     const variants = {
-      primary: "bg-[--gold] text-[--bg-dark] hover:bg-[--gold-light]",
+      primary: "bg-[var(--gold)] text-[var(--bg-dark)] hover:bg-[var(--gold-light)]",
       ghost:
-        "bg-transparent text-[--gold] border border-[--border-gold] hover:bg-[color-mix(in_srgb,var(--gold)_5%,transparent)]",
+        "bg-transparent text-[var(--gold)] border border-[var(--border-gold)] hover:bg-[color-mix(in_srgb,var(--gold)_5%,transparent)]",
       outline:
-        "bg-transparent text-[--text-primary] border border-[--border] hover:border-[--gold]",
+        "bg-transparent text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--gold)]",
     };
 
     const sizes = {

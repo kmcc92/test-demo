@@ -22,7 +22,12 @@
       "Bash(taskkill /PID 15920 /F)",
       "PowerShell(Stop-Process *)",
       "Bash(notepad *)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('deps:', list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devdeps:', list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('deps:', list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\); print\\('devdeps:', list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"CSS_EXIT:$?\")",
+      "Bash(echo \"MATCHES:$?\")",
+      "PowerShell(Get-Process *)",
+      "Bash(git add *)"
     ]
   }
 }
