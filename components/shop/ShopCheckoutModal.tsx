@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import type { Product } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/utils";
 import GoldButton from "@/components/ui/GoldButton";
@@ -123,6 +124,7 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
   const primaryCard = cards[0] ?? null;
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [showCardError, setShowCardError] = useState(false);
   const [shippingMethodId, setShippingMethodId] = useState<ShippingMethodId>("standard");
   const [address, setAddress] = useState<ShippingAddress>(EMPTY_ADDRESS);
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingAddress, string>>>({});
@@ -144,6 +146,16 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
   function updateField(field: keyof ShippingAddress, value: string) {
     setAddress((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+  }
+
+  function handleContinue() {
+    console.log("CONTINUE CLICKED", { user: user?.email, cards });
+    if (!primaryCard) {
+      setShowCardError(true);
+      return;
+    }
+    setShowCardError(false);
+    setStep(2);
   }
 
   function validateAndContinue() {
@@ -255,8 +267,8 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
                   </div>
                 ) : (
                   <p style={{ fontSize: "13px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#3a3a3a", lineHeight: 1.6 }}>
-                    No saved card.{" "}
-                    <a href="/account" style={{ color: "#C9A84C", textDecoration: "underline" }}>Add one in your account</a>.
+                    Please add a payment card in{" "}
+                    <a href="/account" style={{ color: "#C9A84C", textDecoration: "underline" }}>My Account</a>.
                   </p>
                 )}
               </div>
@@ -309,12 +321,20 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <GoldButton variant="primary" size="lg" className="w-full" onClick={() => setStep(2)} disabled={!primaryCard}>
+                <GoldButton variant="primary" size="lg" className="w-full" onClick={handleContinue} disabled={false}>
                   Continue
                 </GoldButton>
                 <GoldButton variant="outline" size="md" className="w-full" onClick={onClose}>
                   Cancel
                 </GoldButton>
+                {showCardError && (
+                  <p style={{ fontSize: "12px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#b00000", lineHeight: 1.5, marginTop: "2px" }}>
+                    Please add a payment method to continue.{" "}
+                    <Link href="/account" style={{ color: "#C9A84C", textDecoration: "underline" }}>
+                      Go to My Account →
+                    </Link>
+                  </p>
+                )}
               </div>
             </>
           )}

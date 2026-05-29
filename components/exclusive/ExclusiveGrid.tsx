@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { Product } from "@/lib/mock-data";
@@ -8,6 +8,9 @@ import { formatPrice } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import QuickViewDrawer from "./QuickViewDrawer";
 import { useOwnership } from "@/hooks/useOwnership";
+import { usePurchaseFlow } from "@/hooks/usePurchaseFlow";
+import PrerequisitesModal from "@/components/checkout/PrerequisitesModal";
+import PurchaseConfirmModal from "@/components/checkout/PurchaseConfirmModal";
 
 interface ExclusiveGridProps {
   products: Product[];
@@ -17,6 +20,9 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
   const [selected, setSelected] = useState<Product | null>(null);
   const reduced = useReducedMotion();
   const { isOwned } = useOwnership();
+  const { step, initiatePurchase, confirm, dismiss } = usePurchaseFlow();
+
+  useEffect(() => { console.log("STEP:", step); }, [step]);
 
   return (
     <section className="px-8 pb-24 max-w-7xl mx-auto">
@@ -84,7 +90,28 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
         })}
       </div>
 
-      <QuickViewDrawer product={selected} onClose={() => setSelected(null)} />
+      <QuickViewDrawer
+        product={selected}
+        onClose={() => setSelected(null)}
+        onBuyNow={initiatePurchase}
+      />
+
+      {step.phase === "prereq" && (
+        <PrerequisitesModal
+          missing={step.missing}
+          onClose={dismiss}
+        />
+      )}
+
+      {step.phase === "confirm" && (
+        <PurchaseConfirmModal
+          product={step.product}
+          card={step.card}
+          walletAddress={step.walletAddress}
+          onConfirm={confirm}
+          onClose={dismiss}
+        />
+      )}
     </section>
   );
 }

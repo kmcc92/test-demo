@@ -9,27 +9,25 @@ import { readCards, type SavedCard } from "@/lib/payment-storage";
 import type { Product } from "@/lib/mock-data";
 
 export type PurchaseStep =
-  | { phase: "idle" }
-  | { phase: "prereq"; missing: ("card" | "wallet")[] }
-  | { phase: "confirm"; card: SavedCard; walletAddress: `0x${string}` };
+  | { phase: "idle"; product: null }
+  | { phase: "prereq"; product: Product; missing: ("card" | "wallet")[] }
+  | { phase: "confirm"; product: Product; card: SavedCard; walletAddress: `0x${string}` };
 
 export interface PurchaseFlowResult {
   step: PurchaseStep;
-  initiatePurchase: () => void;
+  initiatePurchase: (product: Product) => void;
   dismiss: () => void;
   confirm: () => void;
 }
 
-export function usePurchaseFlow(product: Product | null): PurchaseFlowResult {
+export function usePurchaseFlow(): PurchaseFlowResult {
   const { user, openAuth, openCheckout } = useAuth();
   const { isConnected, address } = useWallet();
   const { isOwned } = useOwnership();
   const { show: showToast } = useToast();
-  const [step, setStep] = useState<PurchaseStep>({ phase: "idle" });
+  const [step, setStep] = useState<PurchaseStep>({ phase: "idle", product: null });
 
-  const initiatePurchase = useCallback(() => {
-    if (!product) return;
-
+  const initiatePurchase = useCallback((product: Product) => {
     if (isOwned(product.id)) {
       showToast("You already own this piece", "neutral");
       return;
@@ -42,23 +40,24 @@ export function usePurchaseFlow(product: Product | null): PurchaseFlowResult {
 
     const cards = readCards(user.email);
     const missing: ("card" | "wallet")[] = [];
-    if (cards.length === 0) missing.push("card");
     if (!isConnected || !address) missing.push("wallet");
+    if (cards.length === 0) missing.push("card");
 
     if (missing.length > 0) {
-      setStep({ phase: "prereq", missing });
+      setStep({ phase: "prereq", product, missing });
       return;
     }
 
-    setStep({ phase: "confirm", card: cards[0], walletAddress: address! });
-  }, [product, user, openAuth, isConnected, address, isOwned, showToast]);
+    setStep({ phase: "confirm", product, card: cards[0], walletAddress: address! });
+  }, [user, openAuth, isConnected, address, isOwned, showToast]);
 
-  const dismiss = useCallback(() => setStep({ phase: "idle" }), []);
+  const dismiss = useCallback(() => setStep({ phase: "idle", product: null }), []);
 
   const confirm = useCallback(() => {
-    setStep({ phase: "idle" });
-    if (product) openCheckout(product);
-  }, [openCheckout, product]);
+    if (step.phase !== "confirm") return;
+    openCheckout(step.product);
+    setStep({ phase: "idle", product: null });
+  }, [step, openCheckout]);
 
   return { step, initiatePurchase, dismiss, confirm };
 }

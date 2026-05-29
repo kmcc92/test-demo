@@ -312,6 +312,16 @@ export interface SaleRecord {
   owner: string;
 }
 
+export type ServiceType = "Cleaning" | "Repair" | "Alteration" | "Authentication Inspection" | "Leather Conditioning";
+
+export interface ServiceRecord {
+  id: string;
+  date: string;
+  type: ServiceType;
+  performedBy: string;
+  notes: string;
+}
+
 export interface LibraryEntry {
   id: string;
   name: string;
@@ -321,6 +331,7 @@ export interface LibraryEntry {
   certificateId: string;
   productId?: string; // links this library record to a purchasable product by product.id
   salesHistory: SaleRecord[]; // newest first; minimum one entry
+  serviceHistory?: ServiceRecord[];
 }
 
 export const LIBRARY: LibraryEntry[] = [
@@ -338,6 +349,29 @@ export const LIBRARY: LibraryEntry[] = [
       { date: "2021-09-14", price: 21500, owner: "Private" },
       { date: "2019-03-12", price: 18500, owner: "James Whitfield" },
     ],
+    serviceHistory: [
+      {
+        id: "svc-001-1",
+        date: "2024-11-14",
+        type: "Authentication Inspection",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Annual authentication review. Certificate integrity confirmed. No alterations detected.",
+      },
+      {
+        id: "svc-001-2",
+        date: "2023-03-08",
+        type: "Cleaning",
+        performedBy: "Maison Berthier, London",
+        notes: "Full complimentary cleaning and conditioning. Interior lining inspected and pressed.",
+      },
+      {
+        id: "svc-001-3",
+        date: "2021-10-20",
+        type: "Repair",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Button restoration — two archive horn buttons replaced with matched originals from the SS19 reserve stock.",
+      },
+    ],
   },
   {
     id: "lib-002",
@@ -350,6 +384,22 @@ export const LIBRARY: LibraryEntry[] = [
     productId: "excl-002",
     salesHistory: [
       { date: "2019-08-20", price: 12000, owner: "Private" },
+    ],
+    serviceHistory: [
+      {
+        id: "svc-002-1",
+        date: "2024-06-03",
+        type: "Authentication Inspection",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Certificate re-confirmed. Hardware integrity checked — all original fittings intact.",
+      },
+      {
+        id: "svc-002-2",
+        date: "2022-09-15",
+        type: "Cleaning",
+        performedBy: "Maison Berthier, London",
+        notes: "Leather exterior cleaned and conditioned with archive-formula treatment. Interior structured lining steamed.",
+      },
     ],
   },
   {
@@ -463,6 +513,29 @@ export const LIBRARY: LibraryEntry[] = [
     salesHistory: [
       { date: "2022-09-27", price: 7400, owner: "Marcus Osei" },
     ],
+    serviceHistory: [
+      {
+        id: "svc-010-1",
+        date: "2025-01-22",
+        type: "Leather Conditioning",
+        performedBy: "Maison Berthier, London",
+        notes: "Full grain leather treated with protective conditioning oil. Collar and cuff edges reinforced.",
+      },
+      {
+        id: "svc-010-2",
+        date: "2023-07-11",
+        type: "Authentication Inspection",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Provenance chain reviewed and sealed. Hardware confirmed original. No signs of alteration.",
+      },
+      {
+        id: "svc-010-3",
+        date: "2022-11-04",
+        type: "Alteration",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Sleeve length adjusted by 8mm per owner specification. Original stitching pattern preserved.",
+      },
+    ],
   },
   {
     id: "lib-011",
@@ -516,5 +589,70 @@ export const LIBRARY: LibraryEntry[] = [
       { date: "2025-11-21", price: 6400, owner: "James Whitfield" },
       { date: "2024-11-15", price: 4800, owner: "William Park" },
     ],
+    serviceHistory: [
+      {
+        id: "svc-014-1",
+        date: "2025-10-09",
+        type: "Cleaning",
+        performedBy: "Maison Berthier, London",
+        notes: "Silk exterior hand-washed using archive protocol. Mother-of-pearl buttons individually cleaned and polished.",
+      },
+      {
+        id: "svc-014-2",
+        date: "2025-02-17",
+        type: "Authentication Inspection",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Ownership transfer inspection completed. Certificate updated to reflect current owner. All original components verified.",
+      },
+      {
+        id: "svc-014-3",
+        date: "2024-12-03",
+        type: "Repair",
+        performedBy: "TEST Atelier, Paris",
+        notes: "Interior collar lining re-stitched using original thread weight. Hand-rolled collar edge re-pressed.",
+      },
+    ],
   },
 ];
+
+export const SERVICE_HISTORY: Record<string, ServiceRecord[]> = {
+  "TEST-GOLD-001": [
+    {
+      id: "svc-g001-1",
+      date: "2025-09-12",
+      type: "Authentication Inspection",
+      performedBy: "TEST Atelier, Paris",
+      notes: "Annual certificate review. Provenance chain integrity confirmed. No alterations detected.",
+    },
+    {
+      id: "svc-g001-2",
+      date: "2024-04-18",
+      type: "Cleaning",
+      performedBy: "Maison Berthier, London",
+      notes: "Full complimentary cleaning. Interior lining inspected and pressed. Exterior seams reinforced.",
+    },
+    {
+      id: "svc-g001-3",
+      date: "2023-01-30",
+      type: "Repair",
+      performedBy: "TEST Atelier, Paris",
+      notes: "Button restoration — two archive horn buttons replaced with matched originals from SS19 reserve stock.",
+    },
+  ],
+  "TEST-GOLD-002": [
+    {
+      id: "svc-g002-1",
+      date: "2025-06-05",
+      type: "Authentication Inspection",
+      performedBy: "TEST Atelier, Paris",
+      notes: "Transfer inspection completed. Certificate re-confirmed following ownership change.",
+    },
+    {
+      id: "svc-g002-2",
+      date: "2024-02-21",
+      type: "Cleaning",
+      performedBy: "Maison Berthier, London",
+      notes: "Leather exterior conditioned with archive-formula treatment. Hardware polished. Interior steamed.",
+    },
+  ],
+};

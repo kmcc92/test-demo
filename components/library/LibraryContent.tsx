@@ -386,6 +386,55 @@ function DetailDrawer({
                   />
                 );
               })}
+
+              {/* Service History */}
+              {entry.serviceHistory && entry.serviceHistory.length > 0 && (
+                <>
+                  <div className="mt-8" style={{ borderTop: "1px solid #080808" }} />
+                  <div className="mt-6 mb-2">
+                    <p
+                      className="text-[10px] tracking-[0.45em] uppercase font-[family-name:var(--font-dm-sans)] font-semibold mb-4"
+                      style={{ color: "#080808" }}
+                    >
+                      Service History
+                    </p>
+                    {entry.serviceHistory.map((record, i) => (
+                      <div
+                        key={record.id}
+                        className="py-3"
+                        style={{ borderTop: `1px solid ${i === 0 ? "#080808" : "rgba(0,0,0,0.1)"}` }}
+                      >
+                        <div className="flex items-baseline justify-between mb-1">
+                          <span
+                            className="text-[10px] tracking-[0.2em] uppercase font-[family-name:var(--font-dm-sans)]"
+                            style={{ color: "#080808" }}
+                          >
+                            {record.type}
+                          </span>
+                          <span
+                            className="font-[family-name:var(--font-ibm-mono)] text-[10px] tabular-nums shrink-0 ml-3"
+                            style={{ color: "#8A8A8A" }}
+                          >
+                            {formatDate(record.date)}
+                          </span>
+                        </div>
+                        <p
+                          className="text-[10px] font-[family-name:var(--font-dm-sans)] mb-1.5"
+                          style={{ color: "#8A8A8A" }}
+                        >
+                          {record.performedBy}
+                        </p>
+                        <p
+                          className="text-xs font-[family-name:var(--font-dm-sans)] leading-relaxed"
+                          style={{ color: "#3A3A3A" }}
+                        >
+                          {record.notes}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </motion.aside>
         </>

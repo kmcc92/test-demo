@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Product } from "@/lib/mock-data";
 import type { SavedCard } from "@/lib/payment-storage";
@@ -74,6 +75,8 @@ export default function PurchaseConfirmModal({
   onConfirm,
   onClose,
 }: PurchaseConfirmModalProps) {
+  if (typeof window === "undefined") return null;
+
   const reduced = useReducedMotion();
 
   useEffect(() => {
@@ -84,7 +87,7 @@ export default function PurchaseConfirmModal({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  return (
+  const modal = (
     <AnimatePresence>
       <motion.div
         key="confirm-backdrop"
@@ -169,4 +172,6 @@ export default function PurchaseConfirmModal({
       </motion.div>
     </AnimatePresence>
   );
+
+  return createPortal(modal, document.body);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import GoldButton from "@/components/ui/GoldButton";
@@ -9,14 +10,18 @@ const BLACK = "#080808";
 const MUTED = "#6b6b6b";
 const BORDER = "#e0e0e0";
 
-const COPY: Record<"card" | "wallet", { title: string; body: string }> = {
+const COPY = {
   card: {
     title: "Payment Method Required",
-    body: "Add a payment method in your account to continue.",
+    body: "Please add a payment method before purchasing. You can do this in My Account.",
   },
   wallet: {
     title: "Wallet Required",
-    body: "Connect a wallet to authenticate your purchase on-chain.",
+    body: "Please connect your wallet to purchase authenticated pieces. You can do this in My Account.",
+  },
+  both: {
+    title: "Setup Required",
+    body: "Please connect your wallet to purchase authenticated pieces, and add a payment method before purchasing. You can do this in My Account.",
   },
 };
 
@@ -26,9 +31,12 @@ interface PrerequisitesModalProps {
 }
 
 export default function PrerequisitesModal({ missing, onClose }: PrerequisitesModalProps) {
+  if (typeof window === "undefined") return null;
+  console.log("PREREQ MOUNTED");
+
   const reduced = useReducedMotion();
-  const primary = COPY[missing[0]];
   const hasBoth = missing.length > 1;
+  const copy = hasBoth ? COPY.both : COPY[missing[0]];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -38,7 +46,7 @@ export default function PrerequisitesModal({ missing, onClose }: PrerequisitesMo
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  return (
+  const modal = (
     <AnimatePresence>
       <motion.div
         key="prereq-backdrop"
@@ -95,7 +103,7 @@ export default function PrerequisitesModal({ missing, onClose }: PrerequisitesMo
               marginBottom: "16px",
             }}
           >
-            {primary.title}
+            {copy.title}
           </h2>
           <p
             style={{
@@ -106,8 +114,7 @@ export default function PrerequisitesModal({ missing, onClose }: PrerequisitesMo
               marginBottom: "32px",
             }}
           >
-            {primary.body}
-            {hasBoth && " You will also need to connect a wallet."}
+            {copy.body}
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -124,4 +131,6 @@ export default function PrerequisitesModal({ missing, onClose }: PrerequisitesMo
       </motion.div>
     </AnimatePresence>
   );
+
+  return createPortal(modal, document.body);
 }

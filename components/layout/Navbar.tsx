@@ -151,6 +151,13 @@ export default function Navbar() {
                     >
                       My Account
                     </Link>
+                    <Link
+                      href="/verify"
+                      onClick={() => setDropdownOpen(false)}
+                      className="block py-2 text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[#080808] hover:opacity-60 transition-opacity duration-200"
+                    >
+                      Verify
+                    </Link>
                     <button
                       onClick={() => { logout(); setDropdownOpen(false); }}
                       className="block w-full text-left py-2 text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[#080808] hover:opacity-60 transition-opacity duration-200"

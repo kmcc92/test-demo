@@ -8,19 +8,16 @@ import { formatPrice } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import GoldButton from "@/components/ui/GoldButton";
 import { useOwnership } from "@/hooks/useOwnership";
-import { usePurchaseFlow } from "@/hooks/usePurchaseFlow";
-import PrerequisitesModal from "@/components/checkout/PrerequisitesModal";
-import PurchaseConfirmModal from "@/components/checkout/PurchaseConfirmModal";
 
 interface QuickViewDrawerProps {
   product: Product | null;
   onClose: () => void;
+  onBuyNow: (product: Product) => void;
 }
 
-export default function QuickViewDrawer({ product, onClose }: QuickViewDrawerProps) {
+export default function QuickViewDrawer({ product, onClose, onBuyNow }: QuickViewDrawerProps) {
   const reduced = useReducedMotion();
   const { isOwned } = useOwnership();
-  const { step, initiatePurchase, dismiss, confirm } = usePurchaseFlow(product);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -34,7 +31,6 @@ export default function QuickViewDrawer({ product, onClose }: QuickViewDrawerPro
   }, [product]);
 
   return (
-    <>
     <AnimatePresence>
       {product && (
         <>
@@ -173,7 +169,7 @@ export default function QuickViewDrawer({ product, onClose }: QuickViewDrawerPro
                     variant="primary"
                     size="lg"
                     className="w-full"
-                    onClick={initiatePurchase}
+                    onClick={() => onBuyNow(product)}
                   >
                     Add to Bag
                   </GoldButton>
@@ -187,19 +183,5 @@ export default function QuickViewDrawer({ product, onClose }: QuickViewDrawerPro
         </>
       )}
     </AnimatePresence>
-
-    {product && step.phase === "prereq" && (
-      <PrerequisitesModal missing={step.missing} onClose={dismiss} />
-    )}
-    {product && step.phase === "confirm" && (
-      <PurchaseConfirmModal
-        product={product}
-        card={step.card}
-        walletAddress={step.walletAddress}
-        onConfirm={confirm}
-        onClose={dismiss}
-      />
-    )}
-    </>
   );
 }
