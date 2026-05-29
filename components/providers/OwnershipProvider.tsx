@@ -16,6 +16,7 @@ export interface OwnershipContextValue {
   purchases: PurchaseRecord[];
   isOwned: (productId: string) => boolean;
   addOwnership: (record: PurchaseRecord) => void;
+  removeOwnership: (ownerEmail: string, productId: string) => void;
 }
 
 export const OwnershipContext = createContext<OwnershipContextValue | null>(null);
@@ -44,6 +45,10 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
     setPurchases((prev) => [record, ...prev]);
   }, []);
 
+  const removeOwnership = useCallback((_ownerEmail: string, productId: string) => {
+    setPurchases((prev) => prev.filter((p) => p.productId !== productId));
+  }, []);
+
   // Register once with AuthProvider. Stable addOwnership means this only runs once.
   useEffect(() => {
     setPurchaseHandler(addOwnership);
@@ -64,8 +69,8 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
   );
 
   const value = useMemo(
-    () => ({ purchases, isOwned, addOwnership }),
-    [purchases, isOwned, addOwnership]
+    () => ({ purchases, isOwned, addOwnership, removeOwnership }),
+    [purchases, isOwned, addOwnership, removeOwnership]
   );
 
   return (

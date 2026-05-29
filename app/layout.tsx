@@ -9,6 +9,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 import Web3Provider from "@/components/providers/Web3Provider";
 import AuthProvider from "@/components/providers/AuthProvider";
 import OwnershipProvider from "@/components/providers/OwnershipProvider";
+import MarketplaceProvider from "@/contexts/MarketplaceContext";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -55,11 +56,13 @@ export default async function RootLayout({
           <ToastProvider>
             <AuthProvider>
               <OwnershipProvider>
-                <Navbar />
-                <PageTransition>
-                  <main className="flex-1 flex flex-col pt-16">{children}</main>
-                </PageTransition>
-                <Footer />
+                <MarketplaceProvider>
+                  <Navbar />
+                  <PageTransition>
+                    <main className="flex-1 flex flex-col pt-16">{children}</main>
+                  </PageTransition>
+                  <Footer />
+                </MarketplaceProvider>
               </OwnershipProvider>
             </AuthProvider>
           </ToastProvider>
