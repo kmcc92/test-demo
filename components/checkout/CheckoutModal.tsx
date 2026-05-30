@@ -168,7 +168,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
   }, []);
 
   useEffect(() => {
-    if (step === 3) return;
+    if (step === 2 || step === 3) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -265,7 +265,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
         exit={reduced ? {} : { opacity: 0 }}
         transition={{ duration: 0.25 }}
         style={{ position: "absolute", inset: 0, background: "rgba(8,8,8,0.65)" }}
-        onClick={step !== 3 ? onClose : undefined}
+        onClick={step === 1 || step === 4 ? onClose : undefined}
       />
 
       {/* Card */}
