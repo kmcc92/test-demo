@@ -575,25 +575,39 @@ export default function LibraryContent({
 
   const userEmail = user?.email ?? null;
 
-  // Derive ownership map from context state — no localStorage reads here.
+  // Only exclusive purchases (excl-*) are eligible for ownership display in library.
+  // Shop purchases (prod-*) must never show ownership badges or provenance here.
+  const eligiblePurchases = useMemo(
+    () => purchases.filter((p) => p.productId.startsWith("excl-")),
+    [purchases]
+  );
+
+  // Only show exclusive (excl-*) and archive (no productId) entries.
+  // Shop-linked entries (prod-*) are never displayed in the library.
+  const filteredEntries = useMemo(
+    () => entries.filter((e) => !e.productId || e.productId.startsWith("excl-")),
+    [entries]
+  );
+
+  // Derive ownership map from eligible purchases only.
   // productId → purchase record (first/most recent purchase per product).
   // Recomputes reactively on purchase or logout — no manual sync needed.
   const ownedByProductId = useMemo(() => {
     const map = new Map<string, PurchaseRecord>();
-    purchases.forEach((p) => {
+    eligiblePurchases.forEach((p) => {
       if (p.productId && !map.has(p.productId)) {
         map.set(p.productId, p);
       }
     });
     return map;
-  }, [purchases]);
+  }, [eligiblePurchases]);
 
   // Derive the most recent valid purchase for the selected entry.
   // Filters by productId, then selects the highest purchasedAt timestamp via reduce.
   // Price sourced exclusively from purchase.price — no mock-data or product price used.
   const ownedPurchase = useMemo(() => {
     if (!selected?.productId) return null;
-    const matching = purchases.filter(
+    const matching = eligiblePurchases.filter(
       (p) =>
         p.productId === selected.productId &&
         typeof p.purchasedAt === "string" &&
@@ -604,7 +618,7 @@ export default function LibraryContent({
       (best, p) => (p.purchasedAt > best.purchasedAt ? p : best),
       matching[0]
     );
-  }, [selected, purchases]);
+  }, [selected, eligiblePurchases]);
 
   return (
     <div className="min-h-full bg-[var(--bg-dark)] flex-1">
@@ -626,9 +640,9 @@ export default function LibraryContent({
       {/* Card grid */}
       <div className="max-w-7xl mx-auto px-8 py-12">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {entries.map((entry, i) => {
+          {filteredEntries.map((entry, i) => {
             const owned = !!(entry.productId && ownedByProductId.has(entry.productId));
-            const matches = purchases.filter((p) => p.productId === entry.productId);
+            const matches = eligiblePurchases.filter((p) => p.productId === entry.productId);
             let cardOwnedPrice: number | undefined;
             if (matches.length > 0) {
               const maxTimestamp = Math.max(

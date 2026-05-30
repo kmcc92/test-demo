@@ -18,12 +18,32 @@ interface CheckoutModalProps {
 }
 
 type TxPhase = "signing" | "broadcasting" | "confirming" | "confirmed";
+type ShippingMethod = "standard" | "express" | "overnight";
+
+interface ShippingAddress {
+  name: string;
+  addr1: string;
+  addr2: string;
+  city: string;
+  state: string;
+  postal: string;
+  country: string;
+}
+
+type AddressErrors = Partial<Record<keyof ShippingAddress, string>>;
 
 const GOLD = "#C9A84C";
 const BLACK = "#080808";
 const MUTED = "#6b6b6b";
 const BORDER = "#e0e0e0";
 const BORDER_DARK = "#cccccc";
+const RED = "#c0392b";
+
+const SHIPPING_OPTIONS: { id: ShippingMethod; label: string; detail: string; cost: number }[] = [
+  { id: "standard", label: "Standard", detail: "5–7 business days", cost: 0 },
+  { id: "express", label: "Express", detail: "2–3 business days", cost: 15 },
+  { id: "overnight", label: "Overnight", detail: "Next business day", cost: 35 },
+];
 
 function GoldCheckmark({ reduced }: { reduced: boolean | null }) {
   return (
@@ -71,6 +91,44 @@ function MetaRow({ label, value, gold }: { label: string; value: string; gold?: 
   );
 }
 
+function FieldInput({
+  label, value, onChange, error, placeholder, optional,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  error?: string; placeholder?: string; optional?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <label style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: error ? RED : MUTED }}>
+        {label}{optional && <span style={{ marginLeft: 4, opacity: 0.6 }}>optional</span>}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          padding: "10px 12px",
+          border: `1px solid ${error ? RED : BORDER}`,
+          background: "#fff",
+          fontFamily: "var(--font-dm-sans), sans-serif",
+          fontSize: 13,
+          color: BLACK,
+          outline: "none",
+          transition: "border-color 0.2s",
+        }}
+        onFocus={(e) => { if (!error) e.currentTarget.style.borderColor = GOLD; }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = error ? RED : BORDER; }}
+      />
+      {error && (
+        <span style={{ fontSize: 10, fontFamily: "var(--font-dm-sans), sans-serif", color: RED }}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const TX_PHASES: TxPhase[] = ["signing", "broadcasting", "confirming", "confirmed"];
 const TX_PHASE_LABELS: Record<TxPhase, string> = {
   signing: "Signing Transaction",
@@ -79,7 +137,7 @@ const TX_PHASE_LABELS: Record<TxPhase, string> = {
   confirmed: "Transaction Confirmed",
 };
 
-const STEP_LABELS = ["Order Summary", "Payment", "Certificate"];
+const STEP_LABELS = ["Order Summary", "Shipping", "Payment", "Certificate"];
 
 export default function CheckoutModal({ product, onClose, onComplete }: CheckoutModalProps) {
   const reduced = useReducedMotion();
@@ -89,11 +147,20 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
   const [session] = useState<CheckoutSession>(() =>
     generateCheckoutSession(product.id, Date.now())
   );
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [txPhase, setTxPhase] = useState<TxPhase>("signing");
   const [txHashRevealed, setTxHashRevealed] = useState(0);
   const [confirmationCount, setConfirmationCount] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("standard");
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
+    name: "", addr1: "", addr2: "", city: "", state: "", postal: "", country: "United States",
+  });
+  const [addressErrors, setAddressErrors] = useState<AddressErrors>({});
+
+  const selectedShipping = SHIPPING_OPTIONS.find((o) => o.id === shippingMethod)!;
+  const total = product.price + selectedShipping.cost;
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -101,14 +168,14 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
   }, []);
 
   useEffect(() => {
-    if (step === 2) return;
+    if (step === 3) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [step, onClose]);
 
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 3) return;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     const intervals: ReturnType<typeof setInterval>[] = [];
@@ -136,7 +203,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                 clearInterval(confirmer);
                 setTxPhase("confirmed");
                 const t3 = setTimeout(() => {
-                  setStep(3);
+                  setStep(4);
                   onComplete?.(session, walletAddress);
                   showToast("Added to Collection", "gold");
                 }, 700);
@@ -158,10 +225,36 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
     };
   }, [step, session.txHash]);
 
+  function validateAddress(): boolean {
+    const errors: AddressErrors = {};
+    if (!shippingAddress.name.trim()) errors.name = "Required";
+    if (!shippingAddress.addr1.trim()) errors.addr1 = "Required";
+    if (!shippingAddress.city.trim()) errors.city = "Required";
+    if (!shippingAddress.state.trim()) errors.state = "Required";
+    if (!shippingAddress.postal.trim()) errors.postal = "Required";
+    if (!shippingAddress.country.trim()) errors.country = "Required";
+    setAddressErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function updateField(field: keyof ShippingAddress, value: string) {
+    setShippingAddress((prev) => ({ ...prev, [field]: value }));
+    if (addressErrors[field]) {
+      setAddressErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  }
+
   const currentPhaseIndex = TX_PHASES.indexOf(txPhase);
   const issuedDate = new Date(session.timestamp).toLocaleDateString("en-US", {
     year: "numeric", month: "short", day: "numeric",
   });
+
+  const shippingDisplayLines = [
+    shippingAddress.addr1,
+    shippingAddress.addr2,
+    [shippingAddress.city, shippingAddress.state, shippingAddress.postal].filter(Boolean).join(", "),
+    shippingAddress.country,
+  ].filter(Boolean);
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -172,7 +265,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
         exit={reduced ? {} : { opacity: 0 }}
         transition={{ duration: 0.25 }}
         style={{ position: "absolute", inset: 0, background: "rgba(8,8,8,0.65)" }}
-        onClick={step !== 2 ? onClose : undefined}
+        onClick={step !== 3 ? onClose : undefined}
       />
 
       {/* Card */}
@@ -189,7 +282,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
             <p style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED }}>
               Checkout
             </p>
-            {step !== 2 && (
+            {step !== 3 && (
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -207,12 +300,12 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
           {/* Step indicators */}
           <div style={{ display: "flex", alignItems: "center" }}>
             {STEP_LABELS.map((label, i) => {
-              const num = (i + 1) as 1 | 2 | 3;
+              const num = i + 1;
               const done = step > num;
               const current = step === num;
               return (
                 <div key={label} style={{ display: "flex", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div style={{
                       width: 20, height: 20,
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -222,6 +315,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                       border: done || current ? "none" : `1px solid ${BORDER_DARK}`,
                       color: done || current ? BLACK : MUTED,
                       transition: "background 0.3s, border 0.3s, color 0.3s",
+                      flexShrink: 0,
                     }}>
                       {done ? "✓" : num}
                     </div>
@@ -238,9 +332,10 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                   </div>
                   {i < STEP_LABELS.length - 1 && (
                     <div style={{
-                      width: 24, height: 1, margin: "0 12px",
+                      width: 16, height: 1, margin: "0 8px",
                       background: done ? GOLD : BORDER,
                       transition: "background 0.3s",
+                      flexShrink: 0,
                     }} />
                   )}
                 </div>
@@ -253,7 +348,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
         <div style={{ padding: "32px" }}>
           <AnimatePresence mode="wait">
 
-            {/* ── Step 1: Order Summary ── */}
+            {/* ── Step 1: Order Summary + Shipping Method ── */}
             {step === 1 && (
               <motion.div
                 key="step-1"
@@ -263,7 +358,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
                 {/* Product row */}
-                <div style={{ display: "flex", gap: 20, marginBottom: 32 }}>
+                <div style={{ display: "flex", gap: 20, marginBottom: 28 }}>
                   <div style={{ position: "relative", width: 80, aspectRatio: "3/4", background: "#f0ede8", flexShrink: 0, overflow: "hidden" }}>
                     <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="80px" />
                   </div>
@@ -282,9 +377,74 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                   </div>
                 </div>
 
+                {/* Shipping method selection */}
+                <div style={{ marginBottom: 24 }}>
+                  <p style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, marginBottom: 10 }}>
+                    Shipping Method
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {SHIPPING_OPTIONS.map((opt) => {
+                      const selected = shippingMethod === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          onClick={() => setShippingMethod(opt.id)}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "12px 16px",
+                            border: `1px solid ${selected ? GOLD : BORDER}`,
+                            background: selected ? "rgba(201,168,76,0.04)" : "#fff",
+                            cursor: "pointer",
+                            transition: "border-color 0.2s, background 0.2s",
+                            textAlign: "left",
+                            width: "100%",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div style={{
+                              width: 14, height: 14, borderRadius: "50%", flexShrink: 0,
+                              border: `1px solid ${selected ? GOLD : BORDER_DARK}`,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              transition: "border-color 0.2s",
+                            }}>
+                              {selected && (
+                                <div style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD }} />
+                              )}
+                            </div>
+                            <div>
+                              <p style={{ fontSize: 12, fontFamily: "var(--font-dm-sans), sans-serif", color: BLACK, marginBottom: 1, fontWeight: selected ? 500 : 400 }}>
+                                {opt.label}
+                              </p>
+                              <p style={{ fontSize: 10, fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED }}>
+                                {opt.detail}
+                              </p>
+                            </div>
+                          </div>
+                          <span style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 12, color: selected ? GOLD : MUTED, flexShrink: 0 }}>
+                            {opt.cost === 0 ? "Free" : formatPrice(opt.cost)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Order details box */}
                 <div style={{ border: `1px solid ${BORDER}`, padding: 20, display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
-                  <MetaRow label="Price" value={formatPrice(product.price)} />
+                  <MetaRow label="Item" value={formatPrice(product.price)} />
+                  <MetaRow
+                    label="Shipping"
+                    value={selectedShipping.cost === 0 ? "Free" : formatPrice(selectedShipping.cost)}
+                  />
+                  <div style={{ height: 1, background: BORDER }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: BLACK, fontWeight: 500 }}>
+                      Total
+                    </span>
+                    <span style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 13, color: BLACK, fontWeight: 600 }}>
+                      {formatPrice(total)}
+                    </span>
+                  </div>
                   <div style={{ height: 1, background: BORDER }} />
                   <MetaRow label="Certificate ID" value={session.certificateId} gold />
                   {walletAddress && (
@@ -293,20 +453,103 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                   <MetaRow label="Network" value="Polygon" />
                 </div>
 
-                <p style={{ fontSize: 11, fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, lineHeight: 1.7, marginBottom: 32 }}>
-                  Your purchase will be recorded on the Polygon blockchain. A permanent certificate of authenticity will be issued to your account.
-                </p>
-
                 <GoldButton variant="primary" size="lg" className="w-full" onClick={() => setStep(2)}>
-                  Confirm Purchase
+                  Continue to Shipping
                 </GoldButton>
               </motion.div>
             )}
 
-            {/* ── Step 2: Payment Simulation ── */}
+            {/* ── Step 2: Shipping Address ── */}
             {step === 2 && (
               <motion.div
                 key="step-2"
+                initial={reduced ? {} : { opacity: 0, x: 20 }}
+                animate={reduced ? {} : { opacity: 1, x: 0 }}
+                exit={reduced ? {} : { opacity: 0, x: -20 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <h3 style={{ fontFamily: "var(--font-cormorant), serif", fontSize: 22, fontWeight: 300, color: BLACK, letterSpacing: "0.04em", marginBottom: 24 }}>
+                  Shipping Address
+                </h3>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 28 }}>
+                  <FieldInput
+                    label="Full Name"
+                    value={shippingAddress.name}
+                    onChange={(v) => updateField("name", v)}
+                    error={addressErrors.name}
+                    placeholder="Jane Doe"
+                  />
+                  <FieldInput
+                    label="Address Line 1"
+                    value={shippingAddress.addr1}
+                    onChange={(v) => updateField("addr1", v)}
+                    error={addressErrors.addr1}
+                    placeholder="123 Main St"
+                  />
+                  <FieldInput
+                    label="Address Line 2"
+                    value={shippingAddress.addr2}
+                    onChange={(v) => updateField("addr2", v)}
+                    placeholder="Apt, suite, etc."
+                    optional
+                  />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <FieldInput
+                      label="City"
+                      value={shippingAddress.city}
+                      onChange={(v) => updateField("city", v)}
+                      error={addressErrors.city}
+                      placeholder="New York"
+                    />
+                    <FieldInput
+                      label="State / Province"
+                      value={shippingAddress.state}
+                      onChange={(v) => updateField("state", v)}
+                      error={addressErrors.state}
+                      placeholder="NY"
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <FieldInput
+                      label="Postal Code"
+                      value={shippingAddress.postal}
+                      onChange={(v) => updateField("postal", v)}
+                      error={addressErrors.postal}
+                      placeholder="10001"
+                    />
+                    <FieldInput
+                      label="Country"
+                      value={shippingAddress.country}
+                      onChange={(v) => updateField("country", v)}
+                      error={addressErrors.country}
+                      placeholder="United States"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <GoldButton
+                    variant="primary"
+                    size="lg"
+                    className="w-full"
+                    onClick={() => {
+                      if (validateAddress()) setStep(3);
+                    }}
+                  >
+                    Continue to Payment
+                  </GoldButton>
+                  <GoldButton variant="outline" size="md" className="w-full" onClick={() => setStep(1)}>
+                    Back
+                  </GoldButton>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Step 3: Payment Simulation ── */}
+            {step === 3 && (
+              <motion.div
+                key="step-3"
                 initial={reduced ? {} : { opacity: 0, x: 20 }}
                 animate={reduced ? {} : { opacity: 1, x: 0 }}
                 exit={reduced ? {} : { opacity: 0, x: -20 }}
@@ -415,10 +658,10 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
               </motion.div>
             )}
 
-            {/* ── Step 3: Certificate Minted ── */}
-            {step === 3 && (
+            {/* ── Step 4: Certificate Minted ── */}
+            {step === 4 && (
               <motion.div
-                key="step-3"
+                key="step-4"
                 initial={reduced ? {} : { opacity: 0, x: 20 }}
                 animate={reduced ? {} : { opacity: 1, x: 0 }}
                 exit={reduced ? {} : { opacity: 0, x: -20 }}
@@ -447,7 +690,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                   initial={reduced ? {} : { opacity: 0 }}
                   animate={reduced ? {} : { opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.6 }}
-                  style={{ border: `1px solid ${GOLD}`, padding: 20, display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}
+                  style={{ border: `1px solid ${GOLD}`, padding: 20, display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}
                 >
                   {/* Certificate ID with glow animation */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -472,6 +715,30 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                   />
                   <MetaRow label="Issued" value={issuedDate} />
                   <MetaRow label="Network" value="Polygon" />
+                </motion.div>
+
+                {/* Shipping summary */}
+                <motion.div
+                  initial={reduced ? {} : { opacity: 0 }}
+                  animate={reduced ? {} : { opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.75 }}
+                  style={{ border: `1px solid ${BORDER}`, padding: 16, display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, flexShrink: 0 }}>
+                      Shipping
+                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={{ fontFamily: "var(--font-dm-sans), sans-serif", fontSize: 11, color: BLACK, marginBottom: 2 }}>
+                        {selectedShipping.label} · {selectedShipping.detail}
+                      </p>
+                      {shippingDisplayLines.map((line, i) => (
+                        <p key={i} style={{ fontFamily: "var(--font-dm-sans), sans-serif", fontSize: 11, color: MUTED }}>
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
                 </motion.div>
 
                 <motion.div
