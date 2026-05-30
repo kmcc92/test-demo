@@ -9,7 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import { useDisconnect } from "wagmi";
-import { readSession, writeSession, deleteSession, type AuthSession } from "@/lib/auth-storage";
+import {
+  readSession,
+  writeSession,
+  deleteSession,
+  DEMO_MERCHANT,
+  type AuthSession,
+} from "@/lib/auth-storage";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import type { CheckoutSession } from "@/lib/mock-checkout";
 import type { Product } from "@/lib/mock-data";
@@ -19,6 +25,8 @@ import CheckoutModal from "@/components/checkout/CheckoutModal";
 export interface AuthContextValue {
   user: AuthSession | null;
   isLoaded: boolean;
+  role: "customer" | "merchant" | null;
+  isMerchant: boolean;
   logout: () => void;
   openAuth: (tab?: "login" | "signup") => void;
   openCheckout: (product: Product) => void;
@@ -32,6 +40,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthSession | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [role, setRole] = useState<"customer" | "merchant" | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState<"login" | "signup">("signup");
   const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
@@ -51,13 +60,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    setUser(readSession());
+    const session = readSession();
+    setUser(session);
+    setRole(session ? session.role : null);
     setIsLoaded(true);
   }, []);
 
   const logout = useCallback(() => {
     deleteSession();
     setUser(null);
+    setRole(null);
     setCheckoutProduct(null);
     setPendingProduct(null);
     disconnectWallet();
@@ -83,8 +95,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleAuthSuccess = useCallback(
     (email: string) => {
-      const session = writeSession(email);
+      const assignedRole: "customer" | "merchant" =
+        email === DEMO_MERCHANT.email ? "merchant" : "customer";
+      const session = writeSession(email, assignedRole);
       setUser(session);
+      setRole(assignedRole);
       setAuthOpen(false);
       if (pendingProduct) {
         setCheckoutProduct(pendingProduct);
@@ -99,7 +114,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setPendingProduct(null);
   }, []);
 
-  // Called by CheckoutModal when step 3 is reached.
+  // Called by CheckoutModal when step 4 is reached.
   // Delegates to OwnershipProvider via the registered handler — the only write path.
   const handleCheckoutComplete = useCallback(
     (session: CheckoutSession, walletAddress: string | undefined) => {
@@ -123,7 +138,16 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isLoaded, logout, openAuth, openCheckout, setPurchaseHandler }}
+      value={{
+        user,
+        isLoaded,
+        role,
+        isMerchant: role === "merchant",
+        logout,
+        openAuth,
+        openCheckout,
+        setPurchaseHandler,
+      }}
     >
       {children}
       <AuthModal

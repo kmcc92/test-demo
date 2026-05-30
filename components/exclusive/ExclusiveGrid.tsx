@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { Product } from "@/lib/mock-data";
+import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
 import { formatPrice } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import QuickViewDrawer from "./QuickViewDrawer";
@@ -16,18 +17,44 @@ interface ExclusiveGridProps {
   products: Product[];
 }
 
+function mapMerchantExclusive(p: MerchantProduct): Product {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    images: p.image ? [p.image] : [],
+    stock_type: "exclusive",
+    certificateId: p.certificateId ?? "",
+    edition: "Merchant Edition",
+    sizes: ["S", "M", "L", "XL"],
+    category: "accessories",
+  };
+}
+
 export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
   const [selected, setSelected] = useState<Product | null>(null);
+  const [merchantRaw, setMerchantRaw] = useState<MerchantProduct[]>([]);
   const reduced = useReducedMotion();
   const { isOwned } = useOwnership();
   const { step, initiatePurchase, confirm, dismiss } = usePurchaseFlow();
+
+  useEffect(() => {
+    setMerchantRaw(getMerchantProductsByType("exclusive"));
+  }, []);
+
+  const merchantMapped = merchantRaw
+    .filter((p) => p.id.startsWith("merchant-"))
+    .map(mapMerchantExclusive);
+
+  const allProducts = [...products, ...merchantMapped];
 
   useEffect(() => { console.log("STEP:", step); }, [step]);
 
   return (
     <section className="px-8 pb-24 max-w-7xl mx-auto">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-[rgba(255,255,255,0.04)]">
-        {products.map((product, i) => {
+        {allProducts.map((product, i) => {
           const owned = isOwned(product.id);
           return (
             <motion.button
@@ -49,9 +76,9 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
                   >
                     Owned
                   </span>
-                ) : (
+                ) : product.certificateId ? (
                   <AuthBadge size="sm" />
-                )}
+                ) : null}
               </div>
 
               {/* Image area */}

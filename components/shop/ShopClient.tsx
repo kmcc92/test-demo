@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import type { Product } from "@/lib/mock-data";
+import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
 import ProductCard from "./ProductCard";
 import ShopQuickView from "./ShopQuickView";
 
@@ -22,22 +23,48 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "newest",     label: "Newest First" },
 ];
 
+function mapMerchantShop(p: MerchantProduct): Product {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    images: p.image ? [p.image] : [],
+    stock_type: "regular",
+    certificateId: undefined,
+    edition: undefined,
+    sizes: ["S", "M", "L", "XL"],
+    category: "accessories",
+  };
+}
+
 export default function ShopClient({ products }: ShopClientProps) {
   const reduced = useReducedMotion();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState(ALL);
   const [sort, setSort] = useState<SortKey>("featured");
   const [selected, setSelected] = useState<Product | null>(null);
+  const [merchantRaw, setMerchantRaw] = useState<MerchantProduct[]>([]);
+
+  useEffect(() => {
+    setMerchantRaw(getMerchantProductsByType("shop"));
+  }, []);
+
+  const merchantMapped = merchantRaw
+    .filter((p) => p.id.startsWith("merchant-"))
+    .map(mapMerchantShop);
+
+  const allProducts = [...products, ...merchantMapped];
 
   const q = search.trim().toLowerCase();
 
   const searched = q
-    ? products.filter(
+    ? allProducts.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.description.toLowerCase().includes(q)
       )
-    : products;
+    : allProducts;
 
   const categoryFiltered =
     activeFilter === ALL
@@ -50,7 +77,7 @@ export default function ShopClient({ products }: ShopClientProps) {
       : [...categoryFiltered].sort((a, b) => {
           if (sort === "price-asc") return a.price - b.price;
           if (sort === "price-desc") return b.price - a.price;
-          return products.indexOf(b) - products.indexOf(a); // newest: reverse original order
+          return allProducts.indexOf(b) - allProducts.indexOf(a);
         });
 
   return (

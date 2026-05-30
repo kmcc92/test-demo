@@ -37,9 +37,7 @@ export default function SelectItemModal({ open, onClose, onSelect }: SelectItemM
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  const eligiblePurchases = purchases.filter(
-    (p) => !!p.certificateId && p.certificateId !== "" && p.productId.startsWith("excl-")
-  );
+  const eligiblePurchases = purchases.filter((p) => !!p.certificateId);
 
   const allListed =
     eligiblePurchases.length > 0 && eligiblePurchases.every((p) => isListed(p.productId));

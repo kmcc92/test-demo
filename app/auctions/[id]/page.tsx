@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,6 +11,10 @@ import type { MarketplaceBid } from "@/lib/marketplace-types";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import AuthBadge from "@/components/ui/AuthBadge";
 import BidForm from "@/components/marketplace/BidForm";
+import {
+  getMarketplaceCertificateBadge,
+  type MarketplaceCertificateBadge,
+} from "@/lib/marketplace-certificate-view";
 
 function pickWinner(bidHistory: MarketplaceBid[]): MarketplaceBid | null {
   if (bidHistory.length === 0) return null;
@@ -32,6 +36,15 @@ export default function AuctionPage() {
   const { user } = useAuth();
   const { getListingById, settleAuction } = useMarketplace();
   const listing = getListingById(id);
+
+  const [certBadge, setCertBadge] = useState<MarketplaceCertificateBadge>({
+    hasCertificate: false,
+  });
+
+  useEffect(() => {
+    if (!listing?.productId) return;
+    setCertBadge(getMarketplaceCertificateBadge(listing.productId));
+  }, [listing?.productId]);
 
   useEffect(() => {
     if (!listing || listing.status !== "active") return;
@@ -257,6 +270,46 @@ export default function AuctionPage() {
               </div>
             )}
           </div>
+
+          {/* Item Metadata — merchant certificate record, display only */}
+          {certBadge.hasCertificate && (
+            <div className="border-t border-[var(--border)] pt-6 mt-6 space-y-0">
+              <p className="text-[9px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-4">
+                Item Metadata
+              </p>
+              <div className="flex justify-between items-center py-3 border-b border-[var(--border)]">
+                <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+                  Issued Record
+                </span>
+                <span className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-[var(--text-muted)]">
+                  {certBadge.certificateId}
+                </span>
+              </div>
+              {certBadge.provenanceDepth !== undefined && (
+                <div className="flex justify-between items-center py-3 border-b border-[var(--border)]">
+                  <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+                    Provenance Depth
+                  </span>
+                  <span className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-[var(--text-muted)]">
+                    {certBadge.provenanceDepth}
+                  </span>
+                </div>
+              )}
+              {certBadge.serviceHistoryCount !== undefined && (
+                <div className="flex justify-between items-center py-3 border-b border-[var(--border)]">
+                  <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+                    Service History
+                  </span>
+                  <span className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-[var(--text-muted)]">
+                    {certBadge.serviceHistoryCount}
+                  </span>
+                </div>
+              )}
+              <p className="text-[8px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] opacity-50 pt-3">
+                Certificate metadata available
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

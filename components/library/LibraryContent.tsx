@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
-import { PRODUCTS, type LibraryEntry, type SaleRecord } from "@/lib/mock-data";
+import { PRODUCTS, LIBRARY, type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
+import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
@@ -575,18 +576,48 @@ export default function LibraryContent({
 
   const userEmail = user?.email ?? null;
 
-  // Only exclusive purchases (excl-*) are eligible for ownership display in library.
-  // Shop purchases (prod-*) must never show ownership badges or provenance here.
+  const [merchantProducts, setMerchantProducts] = useState<MerchantProduct[]>([]);
+
+  useEffect(() => {
+    setMerchantProducts(getMerchantProductsByType("exclusive"));
+  }, []);
+
+  const staticLibraryEntries = LIBRARY;
+
+  const merchantLibraryEntries = useMemo<LibraryEntry[]>(
+    () =>
+      merchantProducts.map((m) => ({
+        id: `lib-merchant-${m.id}`,
+        productId: m.id,
+        name: m.name,
+        certificateId: m.certificateId ?? "",
+        image: m.image,
+        salesHistory: [] as SaleRecord[],
+        serviceHistory: [] as ServiceRecord[],
+        description: m.description,
+        category: "accessories",
+      })),
+    [merchantProducts]
+  );
+
+  const displayEntries = useMemo(
+    () => [...staticLibraryEntries, ...merchantLibraryEntries],
+    [merchantLibraryEntries]
+  );
+
+  // Purchases with a certificateId are exclusive-type; shop purchases have no certificateId.
   const eligiblePurchases = useMemo(
-    () => purchases.filter((p) => p.productId.startsWith("excl-")),
+    () => purchases.filter(
+      (p) => typeof p.certificateId === "string" && p.certificateId.length > 0
+    ),
     [purchases]
   );
 
-  // Only show exclusive (excl-*) and archive (no productId) entries.
-  // Shop-linked entries (prod-*) are never displayed in the library.
+  // Archive entries without a productId are always shown; entries with a productId
+  // are shown only when they come from the known library layers (static or merchant).
   const filteredEntries = useMemo(
-    () => entries.filter((e) => !e.productId || e.productId.startsWith("excl-")),
-    [entries]
+    () => displayEntries.filter((e) => !e.productId || e.certificateId.length > 0),
+    [displayEntries]
   );
 
   // Derive ownership map from eligible purchases only.

@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useState, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { type CertificateResult } from "@/lib/mock-verify";
 import { SERVICE_HISTORY } from "@/lib/mock-data";
@@ -16,6 +16,10 @@ import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
 import GoldButton from "@/components/ui/GoldButton";
 import { formatAddress } from "@/lib/utils";
+import {
+  getCertificateDisplayContext,
+  type CertificateDisplayContext,
+} from "@/lib/certificate-display-adapter";
 
 function GoldCheckmark({ reduced }: { reduced: boolean | null }) {
   return (
@@ -513,6 +517,68 @@ function ResultCard({
   );
 }
 
+function CertificateMetadataCard({
+  ctx,
+  reduced,
+}: {
+  ctx: CertificateDisplayContext;
+  reduced: boolean | null;
+}) {
+  if (!ctx.hasCertificate || !ctx.certificate) return null;
+  const cert = ctx.certificate;
+  const issuedDate = new Date(cert.issuedAt).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <motion.div
+      initial={reduced ? {} : { opacity: 0, y: 12 }}
+      animate={reduced ? {} : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
+      className="w-full max-w-lg mx-auto mt-4"
+    >
+      <div className="border border-[var(--border)] p-6">
+        {/* Badge */}
+        <div className="mb-4">
+          <span className="text-[8px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)] border border-[var(--border-gold)] px-2 py-1">
+            Linked Certificate Found
+          </span>
+        </div>
+
+        <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-4">
+          Certificate Metadata
+        </p>
+
+        <div className="border border-[var(--border)] p-4 space-y-3">
+          {[
+            { label: "Certificate ID", value: cert.id, gold: true },
+            { label: "Product", value: cert.productName },
+            { label: "Product ID", value: cert.productId },
+            { label: "Issued To", value: cert.issuedTo },
+            { label: "Issued", value: issuedDate },
+            { label: "Provenance Depth", value: String(cert.metadata.provenanceDepth) },
+            { label: "Service History", value: String(cert.metadata.serviceHistoryCount) },
+          ].map(({ label, value, gold }) => (
+            <div key={label} className="flex justify-between items-center">
+              <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+                {label}
+              </span>
+              <span
+                className="font-[family-name:var(--font-ibm-mono)] text-[11px] max-w-[60%] text-right break-all"
+                style={{ color: gold ? "var(--gold)" : "var(--text-secondary)" }}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function VerifyPage() {
   const reduced = useReducedMotion();
   const inputId = useId();
@@ -523,6 +589,10 @@ export default function VerifyPage() {
   const [inputValue, setInputValue] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [result, setResult] = useState<CertificateResult | null>(null);
+  const [certContext, setCertContext] = useState<CertificateDisplayContext>({
+    certificate: null,
+    hasCertificate: false,
+  });
 
   const blockchainData = result ? getBlockchainData(result.certificateId) : null;
 
@@ -537,6 +607,24 @@ export default function VerifyPage() {
     walletAddress.toLowerCase() === effectiveOwner.toLowerCase()
   );
 
+  // Certificate metadata lookup — client-side only, after result is available.
+  // Derives productId from verificationResult only; never reads storage during SSR.
+  useEffect(() => {
+    if (!result) {
+      setCertContext({ certificate: null, hasCertificate: false });
+      return;
+    }
+    const productId =
+      "productId" in result
+        ? (result as { productId?: string }).productId
+        : undefined;
+    if (!productId) {
+      setCertContext({ certificate: null, hasCertificate: false });
+      return;
+    }
+    setCertContext(getCertificateDisplayContext(productId));
+  }, [result]);
+
   async function handleVerify() {
     if (!inputValue.trim() || isVerifying) return;
     setIsVerifying(true);
@@ -550,6 +638,7 @@ export default function VerifyPage() {
   function handleReset() {
     setResult(null);
     setInputValue("");
+    setCertContext({ certificate: null, hasCertificate: false });
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -612,7 +701,7 @@ export default function VerifyPage() {
         </div>
       </motion.div>
 
-      {/* Result */}
+      {/* Result — verification system is sole authority, always rendered first */}
       <AnimatePresence mode="wait">
         {result && (
           <ResultCard
@@ -624,6 +713,11 @@ export default function VerifyPage() {
           />
         )}
       </AnimatePresence>
+
+      {/* Certificate metadata — decorative display only, always below result */}
+      {result && (
+        <CertificateMetadataCard ctx={certContext} reduced={reduced} />
+      )}
 
       {/* Reset */}
       <AnimatePresence>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +12,10 @@ import CountdownTimer from "@/components/ui/CountdownTimer";
 import GoldButton from "@/components/ui/GoldButton";
 import SelectItemModal from "@/components/marketplace/SelectItemModal";
 import CreateListingModal from "@/components/marketplace/CreateListingModal";
+import {
+  getMarketplaceCertificateBadge,
+  type MarketplaceCertificateBadge,
+} from "@/lib/marketplace-certificate-view";
 import type { MarketplaceListing } from "@/lib/marketplace-types";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
@@ -24,6 +28,14 @@ function getProductImage(productId: string): string {
 }
 
 function ListingCard({ listing }: { listing: MarketplaceListing }) {
+  const [certBadge, setCertBadge] = useState<MarketplaceCertificateBadge>({
+    hasCertificate: false,
+  });
+
+  useEffect(() => {
+    setCertBadge(getMarketplaceCertificateBadge(listing.productId));
+  }, [listing.productId]);
+
   return (
     <Link href={`/auctions/${listing.id}`} className="group block">
       <div className="relative aspect-[3/4] bg-[var(--bg-dark-secondary)] overflow-hidden mb-5">
@@ -64,6 +76,15 @@ function ListingCard({ listing }: { listing: MarketplaceListing }) {
           <CountdownTimer endDate={listing.endsAt} className="text-sm text-[var(--text-primary)]" />
         </div>
       </div>
+
+      {certBadge.hasCertificate && (
+        <div className="inline-flex items-center gap-1.5 border border-[var(--border)] px-2 py-1">
+          <span className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
+          <span className="text-[8px] tracking-[0.2em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+            Certificate Available
+          </span>
+        </div>
+      )}
     </Link>
   );
 }
