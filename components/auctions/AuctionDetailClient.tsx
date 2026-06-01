@@ -5,22 +5,13 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import type { Auction, Bid } from "@/lib/mock-data";
-import { formatPrice, formatAddress } from "@/lib/utils";
+import { formatPrice, formatAddress, formatTimestamp } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import GoldButton from "@/components/ui/GoldButton";
 import { useToast } from "@/components/ui/Toast";
 
 interface AuctionDetailClientProps {
   auction: Auction;
-}
-
-function formatTimestamp(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function AuctionDetailClient({ auction }: AuctionDetailClientProps) {

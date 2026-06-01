@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import QuickViewDrawer from "./QuickViewDrawer";
 import { useOwnership } from "@/hooks/useOwnership";
+import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePurchaseFlow } from "@/hooks/usePurchaseFlow";
 import PrerequisitesModal from "@/components/checkout/PrerequisitesModal";
 import PurchaseConfirmModal from "@/components/checkout/PurchaseConfirmModal";
@@ -37,6 +38,7 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
   const [merchantRaw, setMerchantRaw] = useState<MerchantProduct[]>([]);
   const reduced = useReducedMotion();
   const { isOwned } = useOwnership();
+  const { isListed } = useMarketplace();
   const { step, initiatePurchase, confirm, dismiss } = usePurchaseFlow();
 
   useEffect(() => {
@@ -49,12 +51,14 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
 
   const allProducts = [...products, ...merchantMapped];
 
-  useEffect(() => { console.log("STEP:", step); }, [step]);
+  const visibleProducts = allProducts.filter(
+    (p) => !isOwned(p.id) && !isListed(p.id)
+  );
 
   return (
     <section className="px-8 pb-24 max-w-7xl mx-auto">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-[rgba(255,255,255,0.04)]">
-        {allProducts.map((product, i) => {
+        {visibleProducts.map((product, i) => {
           const owned = isOwned(product.id);
           return (
             <motion.button

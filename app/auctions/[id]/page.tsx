@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, truncateEmail } from "@/lib/utils";
 import type { MarketplaceBid } from "@/lib/marketplace-types";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import AuthBadge from "@/components/ui/AuthBadge";
@@ -23,12 +23,6 @@ function pickWinner(bidHistory: MarketplaceBid[]): MarketplaceBid | null {
       ? b.amount - a.amount
       : new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )[0];
-}
-
-function truncateEmail(email: string): string {
-  const at = email.indexOf("@");
-  if (at <= 4) return email;
-  return email.slice(0, 4) + "…" + email.slice(at);
 }
 
 export default function AuctionPage() {

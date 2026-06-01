@@ -11,7 +11,6 @@ import { useAuth } from "@/hooks/useAuth";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
 interface LibraryContentProps {
-  entries: LibraryEntry[];
   totalValue: number;
   years: string;
   totalTransactions: number;
@@ -49,6 +48,18 @@ function PriceStrip({ entry, ownedPrice }: { entry: LibraryEntry; ownedPrice?: n
 
   const current = entry.salesHistory[0];
   const previous = entry.salesHistory[1];
+
+  if (!current) {
+    return (
+      <div className="absolute bottom-0 left-0 right-0 px-4 pt-10 pb-4 bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-none">
+        <div className="flex items-end justify-between gap-2">
+          <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-white tabular-nums">
+            —
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   const pct = previous
     ? ((current.price - previous.price) / previous.price) * 100
@@ -564,7 +575,6 @@ function LibraryCard({
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function LibraryContent({
-  entries,
   totalValue,
   years,
   totalTransactions,

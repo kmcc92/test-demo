@@ -7,21 +7,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { readCards } from "@/lib/payment-storage";
-import { formatPrice, formatAddress } from "@/lib/utils";
+import { formatPrice, formatAddress, formatTimestamp } from "@/lib/utils";
 import GoldButton from "@/components/ui/GoldButton";
 import { useToast } from "@/components/ui/Toast";
 
 interface BidFormProps {
   listing: MarketplaceListing;
-}
-
-function formatTimestamp(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export default function BidForm({ listing }: BidFormProps) {

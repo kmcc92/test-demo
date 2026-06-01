@@ -17,17 +17,7 @@ type CertificateStore = {
 
 const STORAGE_KEY = "test_certificates_v1";
 
-function generateRandomString(length: number): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return result;
-}
-
-// Exported so callers can generate IDs without reimplementing the logic.
-export { generateRandomString };
+export { generateRandomString } from "@/lib/utils";
 
 function readStore(): CertificateStore {
   if (typeof window === "undefined") return { certificates: [] };

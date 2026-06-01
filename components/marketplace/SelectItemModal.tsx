@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import { PRODUCTS, AUCTIONS } from "@/lib/mock-data";
+import { getProductImage } from "@/lib/utils";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
 interface SelectItemModalProps {
@@ -15,20 +15,13 @@ interface SelectItemModalProps {
   onSelect: (purchase: PurchaseRecord) => void;
 }
 
-function getProductImage(productId: string): string {
-  const product = PRODUCTS.find((p) => p.id === productId);
-  if (product) return product.images[0] ?? "";
-  const auction = AUCTIONS.find((a) => a.id === productId);
-  if (auction) return auction.image ?? "";
-  return "";
-}
-
 export default function SelectItemModal({ open, onClose, onSelect }: SelectItemModalProps) {
-  if (typeof window === "undefined") return null;
-
+  const [mounted, setMounted] = useState(false);
   const reduced = useReducedMotion();
   const { purchases } = useOwnership();
   const { isListed } = useMarketplace();
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +53,8 @@ export default function SelectItemModal({ open, onClose, onSelect }: SelectItemM
       marginBottom: "28px",
     },
   };
+
+  if (!mounted) return null;
 
   const modal = (
     <AnimatePresence>

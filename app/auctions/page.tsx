@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import { PRODUCTS, AUCTIONS } from "@/lib/mock-data";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getProductImage } from "@/lib/utils";
+import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import GoldButton from "@/components/ui/GoldButton";
 import SelectItemModal from "@/components/marketplace/SelectItemModal";
@@ -18,14 +18,6 @@ import {
 } from "@/lib/marketplace-certificate-view";
 import type { MarketplaceListing } from "@/lib/marketplace-types";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
-
-function getProductImage(productId: string): string {
-  const product = PRODUCTS.find((p) => p.id === productId);
-  if (product) return product.images[0] ?? "";
-  const auction = AUCTIONS.find((a) => a.id === productId);
-  if (auction) return auction.image ?? "";
-  return "";
-}
 
 function ListingCard({ listing }: { listing: MarketplaceListing }) {
   const [certBadge, setCertBadge] = useState<MarketplaceCertificateBadge>({
@@ -98,11 +90,16 @@ export default function AuctionsPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRecord | null>(null);
   const [noEligibleMessage, setNoEligibleMessage] = useState(false);
+  const [merchantProducts, setMerchantProducts] = useState<MerchantProduct[]>([]);
+
+  useEffect(() => {
+    setMerchantProducts(getMerchantProductsByType("exclusive"));
+  }, []);
 
   const activeListings = listings.filter((l) => l.status === "active");
 
   const eligiblePurchases = purchases.filter(
-    (p) => !!p.certificateId && p.certificateId !== "" && p.productId.startsWith("excl-")
+    (p) => typeof p.certificateId === "string" && p.certificateId.length > 0
   );
 
   function handleListButtonClick() {
@@ -124,7 +121,16 @@ export default function AuctionsPage() {
     setCreateModalOpen(true);
   }
 
-  const selectedImage = selectedPurchase ? getProductImage(selectedPurchase.productId) : "";
+  const selectedImage = useMemo(() => {
+    if (!selectedPurchase) return "";
+    const merchantProduct = merchantProducts.find((m) => m.id === selectedPurchase.productId);
+    if (merchantProduct?.image) return merchantProduct.image;
+    const catalogImage = getProductImage(selectedPurchase.productId);
+    if (!catalogImage) {
+      console.warn(`[marketplace] No image found for product ${selectedPurchase.productId}`);
+    }
+    return catalogImage;
+  }, [selectedPurchase, merchantProducts]);
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-12 w-full">

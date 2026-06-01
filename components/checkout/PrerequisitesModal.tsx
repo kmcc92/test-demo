@@ -32,7 +32,6 @@ interface PrerequisitesModalProps {
 
 export default function PrerequisitesModal({ missing, onClose }: PrerequisitesModalProps) {
   if (typeof window === "undefined") return null;
-  console.log("PREREQ MOUNTED");
 
   const reduced = useReducedMotion();
   const hasBoth = missing.length > 1;

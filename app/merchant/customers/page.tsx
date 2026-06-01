@@ -4,19 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { getMerchantProducts } from "@/lib/merchant-storage";
 import { generateDemoOrders, generateDemoCustomers } from "@/lib/merchant-demo-data";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, truncateEmail } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
 const BLACK = "#080808";
 const MUTED = "#8a8a8a";
 const BORDER = "rgba(0,0,0,0.08)";
 const BORDER_SOLID = "#e0e0e0";
-
-function truncateEmail(email: string): string {
-  const at = email.indexOf("@");
-  if (at <= 3) return email;
-  return email.slice(0, 3) + "…" + email.slice(at);
-}
 
 export default function MerchantCustomersPage() {
   const [products, setProducts] = useState(() => getMerchantProducts());

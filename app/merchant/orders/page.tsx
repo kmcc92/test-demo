@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { getMerchantProducts } from "@/lib/merchant-storage";
 import { generateDemoOrders, type FakeOrder } from "@/lib/merchant-demo-data";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, truncateEmail } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
 const BLACK = "#080808";
@@ -19,12 +19,6 @@ const STATUS_COLORS: Record<FakeOrder["status"], { text: string; bg: string }> =
   shipped: { text: "#1e40af", bg: "#dbeafe" },
   delivered: { text: "#166534", bg: "#dcfce7" },
 };
-
-function truncateEmail(email: string): string {
-  const at = email.indexOf("@");
-  if (at <= 3) return email;
-  return email.slice(0, 3) + "…" + email.slice(at);
-}
 
 export default function MerchantOrdersPage() {
   const [products, setProducts] = useState(() => getMerchantProducts());

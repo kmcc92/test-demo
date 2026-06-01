@@ -82,8 +82,6 @@ interface CreateListingModalProps {
 }
 
 export default function CreateListingModal({ purchase, image, onClose }: CreateListingModalProps) {
-  if (typeof window === "undefined") return null;
-
   const reduced = useReducedMotion();
   const { user } = useAuth();
   const { address } = useWallet();
@@ -95,6 +93,7 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
   const [duration, setDuration] = useState<AuctionDuration>("48h");
   const [condition, setCondition] = useState("");
   const [success, setSuccess] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const resetAndClose = useCallback(() => {
     setStep(1);
@@ -105,6 +104,8 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
     setSuccess(false);
     onClose();
   }, [onClose]);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") resetAndClose(); };
@@ -137,6 +138,8 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
   const canProceedStep2 = parseFloat(reservePrice) > 0;
 
   const STEP_LABELS = ["Item", "Price", "Duration", "Condition", "Review"];
+
+  if (!mounted) return null;
 
   const modal = (
     <AnimatePresence>
