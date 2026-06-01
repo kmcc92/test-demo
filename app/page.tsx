@@ -1,8 +1,8 @@
 ﻿import Link from "next/link";
 import Image from "next/image";
 import HeroSection from "@/components/home/HeroSection";
-import AuctionPreviewCard from "@/components/home/AuctionPreviewCard";
-import { AUCTIONS, CAMPAIGNS } from "@/lib/mock-data";
+import MarketplacePreview from "@/components/home/MarketplacePreview";
+import { CAMPAIGNS } from "@/lib/mock-data";
 
 export default function HomePage() {
   return (
@@ -27,29 +27,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Live auctions preview */}
-      <section className="max-w-7xl mx-auto px-8 py-24 w-full">
-        <div className="flex items-baseline justify-between mb-12">
-          <div className="flex items-center gap-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
-            <h2 className="text-[10px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-              Live Auctions
-            </h2>
-          </div>
-          <Link
-            href="/auctions"
-            className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors border-b border-transparent hover:border-current pb-0.5"
-          >
-            View All
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {AUCTIONS.map((auction) => (
-            <AuctionPreviewCard key={auction.id} auction={auction} />
-          ))}
-        </div>
-      </section>
+      <MarketplacePreview />
 
       {/* Editorial strip */}
       <section className="max-w-7xl mx-auto px-8 pb-24 w-full">
