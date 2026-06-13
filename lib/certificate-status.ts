@@ -29,7 +29,16 @@ function readStore(): StatusStore {
   if (!isBrowser()) return { records: [] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as StatusStore) : { records: [] };
+    if (!raw) return { records: [] };
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      // Legacy schema migration: old format was a raw array
+      return { records: parsed };
+    }
+    if (!parsed || !Array.isArray(parsed.records)) {
+      return { records: [] };
+    }
+    return parsed as StatusStore;
   } catch {
     return { records: [] };
   }
