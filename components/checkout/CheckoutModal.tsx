@@ -390,8 +390,9 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
   ].filter(Boolean);
 
   // Authenticated (exclusive) items must carry a pre-assigned certificateId —
-  // checkout never generates one. Missing it blocks the purchase entirely.
-  const missingCertificate = product.stock_type === "exclusive" && !product.certificateId;
+  // checkout never generates one. Missing/empty/whitespace-only blocks the purchase entirely.
+  const missingCertificate =
+    product.stock_type === "exclusive" && !product.certificateId?.trim();
 
   useEffect(() => {
     if (missingCertificate) {
@@ -421,8 +422,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
             Checkout
           </p>
           <p style={{ fontSize: 14, fontFamily: "var(--font-dm-sans), sans-serif", color: BLACK, lineHeight: 1.6, marginBottom: 24 }}>
-            This item is missing authentication data and cannot be purchased.
-            Please contact support.
+            This item is missing required authentication data and cannot be purchased.
           </p>
           <GoldButton variant="primary" size="lg" className="w-full" onClick={onClose}>
             Close

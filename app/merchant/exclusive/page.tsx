@@ -8,6 +8,7 @@ import {
   updateMerchantProduct,
   deleteMerchantProduct,
   generateRandomString,
+  isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 import { getCertificates, type Certificate } from "@/lib/certificate-storage";
@@ -75,7 +76,7 @@ const lockedLabelStyle: React.CSSProperties = {
   opacity: 0.7,
 };
 
-type AddFormErrors = Partial<Record<"name" | "description" | "price" | "image", string>>;
+type AddFormErrors = Partial<Record<"name" | "description" | "price" | "image" | "certificateId", string>>;
 type EditForm = { name: string; description: string; price: string; image: string };
 
 export default function MerchantExclusivePage() {
@@ -93,6 +94,7 @@ export default function MerchantExclusivePage() {
   const [addDescription, setAddDescription] = useState("");
   const [addPrice, setAddPrice] = useState("");
   const [addImage, setAddImage] = useState("");
+  const [addCertificateId, setAddCertificateId] = useState("");
   const [addErrors, setAddErrors] = useState<AddFormErrors>({});
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -126,6 +128,14 @@ export default function MerchantExclusivePage() {
     } else if (!addImage.startsWith("https://")) {
       next.image = "Must start with https://";
     }
+    const trimmedCert = addCertificateId.trim();
+    if (!trimmedCert) {
+      next.certificateId = "Required";
+    } else if (/\s/.test(trimmedCert)) {
+      next.certificateId = "Cannot contain spaces";
+    } else if (isCertificateIdTaken(trimmedCert)) {
+      next.certificateId = "This certificate ID is already in use";
+    }
     setAddErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -135,7 +145,7 @@ export default function MerchantExclusivePage() {
     if (!validateAdd() || !user) return;
 
     const now = Date.now();
-    const certificateId = `CERT-${now}-${generateRandomString(6)}`;
+    const certificateId = addCertificateId.trim();
     const product: MerchantProduct = {
       id: `merchant-${now}-${generateRandomString(6)}`,
       type: "exclusive",
@@ -155,6 +165,7 @@ export default function MerchantExclusivePage() {
     setAddDescription("");
     setAddPrice("");
     setAddImage("");
+    setAddCertificateId("");
     setAddErrors({});
     setTimeout(() => setSuccessMsg(null), 6000);
   }
@@ -260,6 +271,22 @@ export default function MerchantExclusivePage() {
               {addErrors.image && <p style={{ marginTop: 4, fontSize: 10, fontFamily: "var(--font-dm-sans), sans-serif", color: RED }}>{addErrors.image}</p>}
             </div>
 
+            {/* Certificate ID — manual entry (NFC tag) */}
+            <div>
+              <label style={fieldLabelStyle(!!addErrors.certificateId)}>Certificate ID (NFC Tag ID)</label>
+              <input
+                type="text"
+                value={addCertificateId}
+                onChange={(e) => { setAddCertificateId(e.target.value); if (addErrors.certificateId) setAddErrors((p) => ({ ...p, certificateId: undefined })); }}
+                style={{ ...inputStyle(!!addErrors.certificateId), fontFamily: "var(--font-ibm-mono), monospace" }}
+                placeholder="e.g. TEST-GOLD-001"
+              />
+              {addErrors.certificateId && <p style={{ marginTop: 4, fontSize: 10, fontFamily: "var(--font-dm-sans), sans-serif", color: RED }}>{addErrors.certificateId}</p>}
+              <p style={{ marginTop: 6, fontSize: 9, fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED }}>
+                Must match the physical NFC tag for this piece. Cannot be changed after creation.
+              </p>
+            </div>
+
             {/* Type — locked */}
             <div>
               <label style={fieldLabelStyle()}>Product Type</label>
@@ -280,9 +307,6 @@ export default function MerchantExclusivePage() {
                   Locked
                 </span>
               </div>
-              <p style={{ marginTop: 6, fontSize: 9, fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED }}>
-                Certificate is generated automatically at submit time.
-              </p>
             </div>
 
             {/* Submit */}

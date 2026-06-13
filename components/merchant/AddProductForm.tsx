@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   addMerchantProduct,
   generateRandomString,
+  isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 
@@ -73,7 +74,8 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
   const [price, setPrice] = useState("");
   const [image, setImage] = useState("");
   const [type, setType] = useState<"shop" | "exclusive">(lockedType ?? "shop");
-  const [errors, setErrors] = useState<Partial<Record<"name" | "description" | "price" | "image", string>>>({});
+  const [certificateId, setCertificateId] = useState("");
+  const [errors, setErrors] = useState<Partial<Record<"name" | "description" | "price" | "image" | "certificateId", string>>>({});
   const [success, setSuccess] = useState(false);
 
   function validate(): boolean {
@@ -90,6 +92,16 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
       next.image = "Required";
     } else if (!image.startsWith("https://")) {
       next.image = "Must start with https://";
+    }
+    if (type === "exclusive") {
+      const trimmed = certificateId.trim();
+      if (!trimmed) {
+        next.certificateId = "Required";
+      } else if (/\s/.test(trimmed)) {
+        next.certificateId = "Cannot contain spaces";
+      } else if (isCertificateIdTaken(trimmed)) {
+        next.certificateId = "This certificate ID is already in use";
+      }
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -108,9 +120,7 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
       price: parseInt(price, 10),
       image: image.trim(),
       certificateId:
-        type === "exclusive"
-          ? `CERT-${now}-${generateRandomString(6)}`
-          : undefined,
+        type === "exclusive" ? certificateId.trim() : undefined,
       createdAt: new Date().toISOString(),
       merchantEmail: user.email,
     };
@@ -123,14 +133,10 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
     setPrice("");
     setImage("");
     setType("shop");
+    setCertificateId("");
     setErrors({});
     setTimeout(() => setSuccess(false), 3000);
   }
-
-  const certPreview =
-    type === "exclusive"
-      ? `CERT-${Date.now()}-${generateRandomString(6)}`
-      : null;
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -246,36 +252,20 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
             </div>
           )}
 
-          {/* Certificate preview */}
-          {type === "exclusive" && certPreview && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: "10px 14px",
-                border: `1px solid rgba(201,168,76,0.35)`,
-                background: "rgba(201,168,76,0.03)",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: 9,
-                  letterSpacing: "0.2em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--font-dm-sans), sans-serif",
-                  color: MUTED,
-                  marginBottom: 4,
-                }}
-              >
-                Certificate preview
-              </p>
-              <p
-                style={{
-                  fontFamily: "var(--font-ibm-mono), monospace",
-                  fontSize: 11,
-                  color: GOLD,
-                }}
-              >
-                Certificate will be generated: {certPreview}
+          {/* Certificate ID — manual entry, exclusive only */}
+          {type === "exclusive" && (
+            <div style={{ marginTop: 12 }}>
+              <FieldLabel error={errors.certificateId}>Certificate ID (NFC Tag ID)</FieldLabel>
+              <input
+                type="text"
+                value={certificateId}
+                onChange={(e) => { setCertificateId(e.target.value); if (errors.certificateId) setErrors((p) => ({ ...p, certificateId: undefined })); }}
+                style={{ ...inputStyle(!!errors.certificateId), fontFamily: "var(--font-ibm-mono), monospace" }}
+                placeholder="e.g. TEST-GOLD-001"
+              />
+              <FieldError message={errors.certificateId} />
+              <p style={{ marginTop: 6, fontSize: 9, fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED }}>
+                Must match the physical NFC tag for this piece. Cannot be changed after creation.
               </p>
             </div>
           )}

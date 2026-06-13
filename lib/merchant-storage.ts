@@ -1,3 +1,5 @@
+import { PRODUCTS, AUCTIONS, LIBRARY } from "@/lib/mock-data";
+
 export type MerchantProduct = {
   id: string;
   type: "shop" | "exclusive";
@@ -60,11 +62,42 @@ export function addMerchantProduct(product: MerchantProduct): void {
   writeStore(store);
 }
 
+// certificateId is assigned once at creation time and is immutable thereafter —
+// it represents a physical NFC tag and must never be reassigned.
+function getStaticCertificateIds(): string[] {
+  const ids: string[] = [];
+  for (const p of PRODUCTS) if (p.certificateId) ids.push(p.certificateId);
+  for (const a of AUCTIONS) ids.push(a.certificateId);
+  for (const l of LIBRARY) ids.push(l.certificateId);
+  return ids;
+}
+
+export function isCertificateIdTaken(
+  certificateId: string,
+  excludeProductId?: string
+): boolean {
+  const normalized = certificateId.trim().toUpperCase();
+  if (getStaticCertificateIds().some((id) => id.toUpperCase() === normalized)) {
+    return true;
+  }
+  return readStore().products.some(
+    (p) =>
+      p.id !== excludeProductId &&
+      !!p.certificateId &&
+      p.certificateId.toUpperCase() === normalized
+  );
+}
+
 export function updateMerchantProduct(
   id: string,
   updates: Partial<MerchantProduct>
 ): void {
   if (!isBrowser()) return;
+  if (updates.certificateId !== undefined) {
+    console.warn(
+      `Rejected attempt to modify certificateId on merchant product ${id} — certificateId is immutable after creation.`
+    );
+  }
   const store = readStore();
   const sanitized: Partial<Pick<MerchantProduct, "name" | "description" | "price" | "image">> = {};
   if (updates.name !== undefined) sanitized.name = updates.name;
