@@ -1,4 +1,5 @@
 ﻿import Image from "next/image";
+// UI_ONLY: static demo content for journal/editorial content — not business logic
 import { JOURNAL_ENTRIES } from "@/lib/mock-data";
 
 export const metadata = { title: "Journal — TEST" };

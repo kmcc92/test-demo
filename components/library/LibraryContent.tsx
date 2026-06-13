@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
-import { PRODUCTS, LIBRARY, type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
+import { PRODUCTS, type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
 import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
@@ -592,8 +592,6 @@ export default function LibraryContent({
     setMerchantProducts(getMerchantProductsByType("exclusive"));
   }, []);
 
-  const staticLibraryEntries = LIBRARY;
-
   const merchantLibraryEntries = useMemo<LibraryEntry[]>(
     () =>
       merchantProducts.map((m) => ({
@@ -610,11 +608,6 @@ export default function LibraryContent({
     [merchantProducts]
   );
 
-  const displayEntries = useMemo(
-    () => [...staticLibraryEntries, ...merchantLibraryEntries],
-    [merchantLibraryEntries]
-  );
-
   // Purchases with a certificateId are exclusive-type; shop purchases have no certificateId.
   const eligiblePurchases = useMemo(
     () => purchases.filter(
@@ -623,8 +616,40 @@ export default function LibraryContent({
     [purchases]
   );
 
+  // Library entries derived strictly from real purchases — most recent
+  // purchase per product wins (per PURCHASE RESOLUTION RULE).
+  const purchaseLibraryEntries = useMemo<LibraryEntry[]>(() => {
+    const latestByProduct = new Map<string, PurchaseRecord>();
+    eligiblePurchases.forEach((p) => {
+      if (!p.productId) return;
+      const existing = latestByProduct.get(p.productId);
+      if (!existing || new Date(p.purchasedAt).getTime() > new Date(existing.purchasedAt).getTime()) {
+        latestByProduct.set(p.productId, p);
+      }
+    });
+    return Array.from(latestByProduct.entries()).map(([productId, purchase]) => {
+      const source = getSourceItem(productId);
+      return {
+        id: `lib-purchase-${purchase.id}`,
+        productId,
+        name: purchase.productName,
+        description: source?.description ?? "",
+        category: source?.category ?? "accessories",
+        image: source?.images[0] ?? "",
+        certificateId: purchase.certificateId,
+        salesHistory: [] as SaleRecord[],
+        serviceHistory: [] as ServiceRecord[],
+      };
+    });
+  }, [eligiblePurchases]);
+
+  const displayEntries = useMemo(
+    () => [...purchaseLibraryEntries, ...merchantLibraryEntries],
+    [purchaseLibraryEntries, merchantLibraryEntries]
+  );
+
   // Archive entries without a productId are always shown; entries with a productId
-  // are shown only when they come from the known library layers (static or merchant).
+  // are shown only when they come from the known library layers (purchase-derived or merchant).
   const filteredEntries = useMemo(
     () => displayEntries.filter((e) => !e.productId || e.certificateId.length > 0),
     [displayEntries]

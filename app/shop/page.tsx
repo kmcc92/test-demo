@@ -1,4 +1,5 @@
-﻿import { PRODUCTS } from "@/lib/mock-data";
+﻿// UI_ONLY: static demo content for shop catalog display — not business logic
+import { PRODUCTS } from "@/lib/mock-data";
 import ShopClient from "@/components/shop/ShopClient";
 
 export const metadata = { title: "Shop — TEST" };

@@ -2,6 +2,7 @@
 import Image from "next/image";
 import HeroSection from "@/components/home/HeroSection";
 import MarketplacePreview from "@/components/home/MarketplacePreview";
+// UI_ONLY: static demo content for homepage campaigns/content — not business logic
 import { CAMPAIGNS } from "@/lib/mock-data";
 
 export default function HomePage() {

@@ -48,7 +48,11 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
 
   const merchantMapped = merchantRaw.map(mapMerchantExclusive);
 
-  const allProducts = [...products, ...merchantMapped];
+  // Mock exclusive products (excl-001..004 in lib/mock-data.ts) are demo
+  // placeholders — only merchant-created exclusives are displayed here.
+  const nonMockProducts = products.filter((p) => !p.id.startsWith("excl-"));
+
+  const allProducts = [...nonMockProducts, ...merchantMapped];
 
   const visibleProducts = getVisibleProducts({
     products: allProducts,

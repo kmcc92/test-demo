@@ -2,14 +2,14 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import { PRODUCTS } from "@/lib/mock-data";
+import { getMerchantProductsByType } from "@/lib/merchant-storage";
 
 export default function MerchantDashboard() {
   const { user, logout } = useAuth();
   const { listings } = useMarketplace();
 
-  const shopCount = PRODUCTS.filter((p) => p.id.startsWith("prod-")).length;
-  const exclusiveCount = PRODUCTS.filter((p) => p.id.startsWith("excl-")).length;
+  const shopCount = getMerchantProductsByType("shop").length;
+  const exclusiveCount = getMerchantProductsByType("exclusive").length;
   const activeListings = listings.filter((l) => l.status === "active").length;
 
   const stats: { label: string; value: string | number }[] = [
