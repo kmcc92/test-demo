@@ -120,11 +120,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     (session: CheckoutSession, walletAddress: string | undefined) => {
       if (!user || !checkoutProduct) return;
       const record: PurchaseRecord = {
-        id: session.certificateId,
+        id: session.txHash,
         productId: checkoutProduct.id,
         productName: checkoutProduct.name,
-        certificateId: session.certificateId,
-        productCertificateId: checkoutProduct.certificateId,
+        certificateId: checkoutProduct.certificateId ?? "",
         txHash: session.txHash,
         price: checkoutProduct.price,
         purchasedAt: session.timestamp,

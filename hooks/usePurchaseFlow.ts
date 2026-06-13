@@ -5,13 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useToast } from "@/components/ui/Toast";
-import { readCards, type SavedCard } from "@/lib/payment-storage";
 import type { Product } from "@/lib/mock-data";
 
 export type PurchaseStep =
   | { phase: "idle"; product: null }
-  | { phase: "prereq"; product: Product; missing: ("card" | "wallet")[] }
-  | { phase: "confirm"; product: Product; card: SavedCard; walletAddress: `0x${string}` };
+  | { phase: "prereq"; product: Product; missing: ("wallet")[] }
+  | { phase: "confirm"; product: Product; walletAddress: `0x${string}` };
 
 export interface PurchaseFlowResult {
   step: PurchaseStep;
@@ -38,17 +37,15 @@ export function usePurchaseFlow(): PurchaseFlowResult {
       return;
     }
 
-    const cards = readCards(user.email);
-    const missing: ("card" | "wallet")[] = [];
+    const missing: ("wallet")[] = [];
     if (!isConnected || !address) missing.push("wallet");
-    if (cards.length === 0) missing.push("card");
 
     if (missing.length > 0) {
       setStep({ phase: "prereq", product, missing });
       return;
     }
 
-    setStep({ phase: "confirm", product, card: cards[0], walletAddress: address! });
+    setStep({ phase: "confirm", product, walletAddress: address! });
   }, [user, openAuth, isConnected, address, isOwned, showToast]);
 
   const dismiss = useCallback(() => setStep({ phase: "idle", product: null }), []);

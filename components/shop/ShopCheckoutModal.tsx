@@ -147,6 +147,22 @@ function StripePaymentForm({
 }: StripePaymentFormProps) {
   const stripe   = useStripe();
   const elements = useElements();
+  const [stripeLoadTimedOut, setStripeLoadTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (stripe && elements) {
+      setStripeLoadTimedOut(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!stripe || !elements) {
+        setStripeLoadTimedOut(true);
+      }
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [stripe, elements]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -182,6 +198,42 @@ function StripePaymentForm({
     }
   }
 
+  if (stripeLoadTimedOut) {
+    return (
+      <div>
+        <p style={{ fontSize: "12px", color: "#b00000", fontFamily: "var(--font-dm-sans), sans-serif", marginBottom: "12px", lineHeight: 1.5 }}>
+          Payment form failed to load. This may be caused by an ad blocker
+          or browser extension. Please disable ad blockers for this site
+          and refresh the page.
+        </p>
+        <GoldButton
+          type="button"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={() => window.location.reload()}
+        >
+          Refresh Page
+        </GoldButton>
+      </div>
+    );
+  }
+
+  if (!stripe || !elements) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", height: "80px" }}>
+        <span style={{
+          display: "inline-block", width: "18px", height: "18px",
+          border: "1.5px solid #C9A84C", borderTopColor: "transparent",
+          borderRadius: "50%", animation: "spin 0.8s linear infinite",
+        }} />
+        <p style={{ fontSize: "12px", color: "#8a8a8a", fontFamily: "var(--font-dm-sans), sans-serif" }}>
+          Loading payment form...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <div style={{ marginBottom: "20px" }}>
@@ -200,8 +252,8 @@ function StripePaymentForm({
           variant="primary"
           size="lg"
           className="w-full"
-          loading={paymentLoading || !stripe || !elements}
-          disabled={!stripe || !elements || paymentLoading}
+          loading={paymentLoading}
+          disabled={paymentLoading}
         >
           Pay {formatPrice(total)}
         </GoldButton>

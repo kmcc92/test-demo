@@ -10,6 +10,18 @@ import { useWallet } from "@/hooks/useWallet";
 import { useToast } from "@/components/ui/Toast";
 import { formatPrice, formatAddress } from "@/lib/utils";
 import GoldButton from "@/components/ui/GoldButton";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+// stripePromise must be at module level — never inside a component
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 interface CheckoutModalProps {
   product: Product;
@@ -17,7 +29,6 @@ interface CheckoutModalProps {
   onComplete?: (session: CheckoutSession, walletAddress: string | undefined) => void;
 }
 
-type TxPhase = "signing" | "broadcasting" | "confirming" | "confirmed";
 type ShippingMethod = "standard" | "express" | "overnight";
 
 interface ShippingAddress {
@@ -129,13 +140,160 @@ function FieldInput({
   );
 }
 
-const TX_PHASES: TxPhase[] = ["signing", "broadcasting", "confirming", "confirmed"];
-const TX_PHASE_LABELS: Record<TxPhase, string> = {
-  signing: "Signing Transaction",
-  broadcasting: "Broadcasting to Polygon",
-  confirming: "Awaiting Confirmations",
-  confirmed: "Transaction Confirmed",
-};
+// ── Stripe payment form (must be inside <Elements>) ───────────────────────────
+
+interface StripePaymentFormProps {
+  total: number;
+  onSuccess: () => void;
+  paymentError: string | null;
+  setPaymentError: (v: string | null) => void;
+  paymentLoading: boolean;
+  setPaymentLoading: (v: boolean) => void;
+  onBack: () => void;
+}
+
+function StripePaymentForm({
+  total,
+  onSuccess,
+  paymentError,
+  setPaymentError,
+  paymentLoading,
+  setPaymentLoading,
+  onBack,
+}: StripePaymentFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [stripeLoadTimedOut, setStripeLoadTimedOut] = useState(false);
+
+  console.log("STRIPE DEBUG:", {
+    stripe: !!stripe,
+    elements: !!elements,
+    stripeLoadTimedOut,
+    timestamp: Date.now(),
+  });
+
+  useEffect(() => {
+    if (stripe && elements) {
+      setStripeLoadTimedOut(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!stripe || !elements) {
+        setStripeLoadTimedOut(true);
+      }
+    }, 6000);
+
+    return () => clearTimeout(timer);
+  }, [stripe, elements]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setPaymentLoading(true);
+    setPaymentError(null);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {},
+      redirect: "if_required",
+    });
+
+    if (error) {
+      const msg =
+        error.type === "card_error" || error.type === "validation_error"
+          ? (error.message ?? "Card declined.")
+          : "Payment failed. Please try again.";
+      setPaymentError(msg);
+      setPaymentLoading(false);
+      return;
+    }
+
+    if (paymentIntent?.status === "succeeded") {
+      onSuccess();
+    } else if (paymentIntent?.status === "requires_action") {
+      setPaymentError("Additional verification required. Please try again.");
+      setPaymentLoading(false);
+    } else {
+      setPaymentError("Payment is processing. Please wait.");
+      setPaymentLoading(false);
+    }
+  }
+
+  if (stripeLoadTimedOut) {
+    return (
+      <div>
+        <p style={{ fontSize: 12, color: RED, fontFamily: "var(--font-dm-sans), sans-serif", marginBottom: 12, lineHeight: 1.5 }}>
+          Payment form failed to load. This may be caused by an ad blocker
+          or browser extension. Please disable ad blockers for this site
+          and refresh the page.
+        </p>
+        <GoldButton
+          type="button"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={() => window.location.reload()}
+        >
+          Refresh Page
+        </GoldButton>
+      </div>
+    );
+  }
+
+  if (!stripe || !elements) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, height: 80 }}>
+        <span style={{
+          display: "inline-block", width: 18, height: 18,
+          border: "1.5px solid #C9A84C", borderTopColor: "transparent",
+          borderRadius: "50%", animation: "spin 0.8s linear infinite",
+        }} />
+        <p style={{ fontSize: 12, color: MUTED, fontFamily: "var(--font-dm-sans), sans-serif" }}>
+          Loading payment form...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={{ marginBottom: 20 }}>
+        <PaymentElement options={{ layout: "tabs" }} />
+      </div>
+
+      {paymentError && (
+        <p style={{ fontSize: 12, color: RED, fontFamily: "var(--font-dm-sans), sans-serif", marginBottom: 12, lineHeight: 1.5 }}>
+          {paymentError}
+        </p>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <GoldButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          loading={paymentLoading}
+          disabled={paymentLoading}
+        >
+          Pay {formatPrice(total)}
+        </GoldButton>
+        <GoldButton
+          type="button"
+          variant="outline"
+          size="md"
+          className="w-full"
+          onClick={onBack}
+          disabled={paymentLoading}
+        >
+          Back
+        </GoldButton>
+      </div>
+    </form>
+  );
+}
 
 const STEP_LABELS = ["Order Summary", "Shipping", "Payment", "Certificate"];
 
@@ -148,10 +306,11 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
     generateCheckoutSession(product.id, Date.now())
   );
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [txPhase, setTxPhase] = useState<TxPhase>("signing");
-  const [txHashRevealed, setTxHashRevealed] = useState(0);
-  const [confirmationCount, setConfirmationCount] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
 
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>("standard");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
@@ -174,56 +333,31 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
     return () => document.removeEventListener("keydown", onKey);
   }, [step, onClose]);
 
+  // Fetch PaymentIntent when user reaches step 3
   useEffect(() => {
-    if (step !== 3) return;
-
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const intervals: ReturnType<typeof setInterval>[] = [];
-
-    setTxPhase("signing");
-    setTxHashRevealed(0);
-    setConfirmationCount(0);
-
-    const t1 = setTimeout(() => {
-      const total = session.txHash.length;
-      let revealed = 0;
-      const typer = setInterval(() => {
-        revealed += 2;
-        setTxHashRevealed(Math.min(revealed, total));
-        if (revealed >= total) {
-          clearInterval(typer);
-          setTxPhase("broadcasting");
-          const t2 = setTimeout(() => {
-            setTxPhase("confirming");
-            let count = 0;
-            const confirmer = setInterval(() => {
-              count++;
-              setConfirmationCount(count);
-              if (count >= 12) {
-                clearInterval(confirmer);
-                setTxPhase("confirmed");
-                const t3 = setTimeout(() => {
-                  setStep(4);
-                  onComplete?.(session, walletAddress);
-                  showToast("Added to Collection", "gold");
-                }, 700);
-                timers.push(t3);
-              }
-            }, 220);
-            intervals.push(confirmer);
-          }, 700);
-          timers.push(t2);
+    if (step !== 3 || clientSecret) return;
+    const amountCents = Math.round(total * 100);
+    fetch("/api/create-payment-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: amountCents }),
+    })
+      .then((r) => r.json())
+      .then((data: { clientSecret?: string; error?: string }) => {
+        if (data.clientSecret) {
+          setClientSecret(data.clientSecret);
+        } else {
+          setIntentError(data.error ?? "Failed to initialize payment. Please try again.");
         }
-      }, 18);
-      intervals.push(typer);
-    }, 600);
-    timers.push(t1);
+      })
+      .catch(() => setIntentError("Failed to initialize payment. Please try again."));
+  }, [step, clientSecret, total]);
 
-    return () => {
-      timers.forEach(clearTimeout);
-      intervals.forEach(clearInterval);
-    };
-  }, [step, session.txHash]);
+  function handlePaymentSuccess() {
+    setStep(4);
+    onComplete?.(session, walletAddress);
+    showToast("Added to Collection", "gold");
+  }
 
   function validateAddress(): boolean {
     const errors: AddressErrors = {};
@@ -244,7 +378,6 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
     }
   }
 
-  const currentPhaseIndex = TX_PHASES.indexOf(txPhase);
   const issuedDate = new Date(session.timestamp).toLocaleDateString("en-US", {
     year: "numeric", month: "short", day: "numeric",
   });
@@ -255,6 +388,49 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
     [shippingAddress.city, shippingAddress.state, shippingAddress.postal].filter(Boolean).join(", "),
     shippingAddress.country,
   ].filter(Boolean);
+
+  // Authenticated (exclusive) items must carry a pre-assigned certificateId —
+  // checkout never generates one. Missing it blocks the purchase entirely.
+  const missingCertificate = product.stock_type === "exclusive" && !product.certificateId;
+
+  useEffect(() => {
+    if (missingCertificate) {
+      console.error("AUTHENTICATED ITEM MISSING CERTIFICATE ID: " + product.id);
+    }
+  }, [missingCertificate, product.id]);
+
+  if (missingCertificate) {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <motion.div
+          initial={reduced ? {} : { opacity: 0 }}
+          animate={reduced ? {} : { opacity: 1 }}
+          exit={reduced ? {} : { opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{ position: "absolute", inset: 0, background: "rgba(8,8,8,0.65)" }}
+          onClick={onClose}
+        />
+        <motion.div
+          initial={reduced ? {} : { opacity: 0, scale: 0.97, y: 10 }}
+          animate={reduced ? {} : { opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: 448, background: "#ffffff", border: `1px solid ${BORDER_DARK}`, padding: 32 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p style={{ fontSize: 10, letterSpacing: "0.4em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, marginBottom: 20 }}>
+            Checkout
+          </p>
+          <p style={{ fontSize: 14, fontFamily: "var(--font-dm-sans), sans-serif", color: BLACK, lineHeight: 1.6, marginBottom: 24 }}>
+            This item is missing authentication data and cannot be purchased.
+            Please contact support.
+          </p>
+          <GoldButton variant="primary" size="lg" className="w-full" onClick={onClose}>
+            Close
+          </GoldButton>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -446,7 +622,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                     </span>
                   </div>
                   <div style={{ height: 1, background: BORDER }} />
-                  <MetaRow label="Certificate ID" value={session.certificateId} gold />
+                  <MetaRow label="Certificate ID" value={product.certificateId ?? ""} gold />
                   {walletAddress && (
                     <MetaRow label="Owner Wallet" value={formatAddress(walletAddress)} />
                   )}
@@ -546,7 +722,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
               </motion.div>
             )}
 
-            {/* ── Step 3: Payment Simulation ── */}
+            {/* ── Step 3: Payment ── */}
             {step === 3 && (
               <motion.div
                 key="step-3"
@@ -555,106 +731,70 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                 exit={reduced ? {} : { opacity: 0, x: -20 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                {/* Active phase label */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD, flexShrink: 0, animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" }} className="animate-pulse" />
-                  <motion.p
-                    key={txPhase}
-                    initial={reduced ? {} : { opacity: 0, y: 4 }}
-                    animate={reduced ? {} : { opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25 }}
-                    style={{ fontSize: 10, letterSpacing: "0.35em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: GOLD }}
+                <h3 style={{ fontFamily: "var(--font-cormorant), serif", fontSize: 22, fontWeight: 300, color: BLACK, letterSpacing: "0.04em", marginBottom: 24 }}>
+                  Payment
+                </h3>
+
+                <div style={{ border: `1px solid ${BORDER}`, padding: 20, display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+                  <MetaRow label="Item" value={formatPrice(product.price)} />
+                  <MetaRow
+                    label="Shipping"
+                    value={selectedShipping.cost === 0 ? "Free" : formatPrice(selectedShipping.cost)}
+                  />
+                  <div style={{ height: 1, background: BORDER }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: BLACK, fontWeight: 500 }}>
+                      Total
+                    </span>
+                    <span style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 13, color: BLACK, fontWeight: 600 }}>
+                      {formatPrice(total)}
+                    </span>
+                  </div>
+                </div>
+
+                {intentError ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <p style={{ fontSize: 12, color: RED, fontFamily: "var(--font-dm-sans), sans-serif", lineHeight: 1.5 }}>
+                      {intentError}
+                    </p>
+                    <GoldButton variant="outline" size="md" className="w-full" onClick={() => setStep(2)}>
+                      Back
+                    </GoldButton>
+                  </div>
+                ) : !clientSecret ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 80 }}>
+                    <span style={{
+                      display: "inline-block", width: 18, height: 18,
+                      border: "1.5px solid #C9A84C", borderTopColor: "transparent",
+                      borderRadius: "50%", animation: "spin 0.8s linear infinite",
+                    }} />
+                  </div>
+                ) : (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      appearance: {
+                        theme: "stripe",
+                        variables: {
+                          colorPrimary: "#C9A84C",
+                          fontFamily: "DM Sans, sans-serif",
+                          borderRadius: "0px",
+                        },
+                      },
+                    }}
                   >
-                    {TX_PHASE_LABELS[txPhase]}
-                  </motion.p>
-                </div>
-
-                {/* Phase list */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 32 }}>
-                  {TX_PHASES.map((phase, i) => {
-                    const done = i < currentPhaseIndex;
-                    const active = i === currentPhaseIndex;
-                    return (
-                      <div key={phase} style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-                        {/* Dot */}
-                        <div style={{ flexShrink: 0, marginTop: 2, width: 16, height: 16 }}>
-                          {done ? (
-                            <motion.div
-                              initial={reduced ? {} : { scale: 0 }}
-                              animate={reduced ? {} : { scale: 1 }}
-                              transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                              style={{ width: 16, height: 16, borderRadius: "50%", background: GOLD, display: "flex", alignItems: "center", justifyContent: "center" }}
-                            >
-                              <svg width="8" height="6" viewBox="0 0 8 6" fill="none" aria-hidden>
-                                <path d="M1 3L3 5L7 1" stroke={BLACK} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </motion.div>
-                          ) : active ? (
-                            <div style={{ width: 16, height: 16, borderRadius: "50%", border: `1px solid ${GOLD}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: GOLD }} className="animate-pulse" />
-                            </div>
-                          ) : (
-                            <div style={{ width: 16, height: 16, borderRadius: "50%", border: `1px solid ${BORDER_DARK}` }} />
-                          )}
-                        </div>
-
-                        {/* Detail */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase",
-                            fontFamily: "var(--font-dm-sans), sans-serif",
-                            marginBottom: 4,
-                            color: done ? MUTED : active ? BLACK : BORDER_DARK,
-                          }}>
-                            {TX_PHASE_LABELS[phase]}
-                          </p>
-
-                          {/* Typewriter tx hash */}
-                          {phase === "signing" && (done || active) && (
-                            <p style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 10, color: MUTED, wordBreak: "break-all", lineHeight: 1.6 }}>
-                              {session.txHash.slice(0, txHashRevealed)}
-                              {txHashRevealed < session.txHash.length && active && (
-                                <motion.span
-                                  animate={{ opacity: [1, 0] }}
-                                  transition={{ duration: 0.5, repeat: Infinity }}
-                                  style={{ display: "inline-block", width: 2, height: 12, background: GOLD, verticalAlign: "middle", marginLeft: 2 }}
-                                />
-                              )}
-                            </p>
-                          )}
-
-                          {/* Confirmation progress */}
-                          {phase === "confirming" && active && (
-                            <div style={{ marginTop: 8 }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                                <span style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 10, color: MUTED }}>
-                                  {confirmationCount} / 12 confirmations
-                                </span>
-                                <span style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 10, color: MUTED }}>
-                                  {Math.round((confirmationCount / 12) * 100)}%
-                                </span>
-                              </div>
-                              <div style={{ height: 2, background: BORDER, width: "100%", overflow: "hidden" }}>
-                                <motion.div
-                                  style={{ height: "100%", background: GOLD }}
-                                  animate={{ width: `${(confirmationCount / 12) * 100}%` }}
-                                  transition={{ duration: 0.2, ease: "easeOut" }}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Gas details */}
-                <div style={{ border: `1px solid ${BORDER}`, padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <MetaRow label="Block" value={session.blockNumber.toLocaleString("en-US")} />
-                  <MetaRow label="Gas Used" value={session.gasUsed} />
-                  <MetaRow label="Gas Price" value={session.gasPrice} />
-                </div>
+                    <StripePaymentForm
+                      total={total}
+                      onSuccess={handlePaymentSuccess}
+                      paymentError={paymentError}
+                      setPaymentError={setPaymentError}
+                      paymentLoading={paymentLoading}
+                      setPaymentLoading={setPaymentLoading}
+                      onBack={() => setStep(2)}
+                    />
+                  </Elements>
+                )}
               </motion.div>
             )}
 
@@ -703,7 +843,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                       transition={{ duration: 1.6, delay: 0.9, ease: "easeOut", times: [0, 0.35, 1] }}
                       style={{ fontFamily: "var(--font-ibm-mono), monospace", fontSize: 11, color: GOLD }}
                     >
-                      {session.certificateId}
+                      {product.certificateId}
                     </motion.span>
                   </div>
                   {walletAddress && (
@@ -752,7 +892,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                     size="md"
                     className="w-full"
                     onClick={() => {
-                      navigator.clipboard.writeText(session.certificateId).then(() => {
+                      navigator.clipboard.writeText(product.certificateId ?? "").then(() => {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                       });
@@ -765,7 +905,7 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
                       View in Library
                     </GoldButton>
                   </Link>
-                  <Link href={`/verify?id=${session.certificateId}`} onClick={onClose} className="block">
+                  <Link href={`/verify?id=${product.certificateId}`} onClick={onClose} className="block">
                     <GoldButton variant="primary" size="lg" className="w-full">
                       Verify Certificate
                     </GoldButton>

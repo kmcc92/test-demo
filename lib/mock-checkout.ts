@@ -1,5 +1,4 @@
 export interface CheckoutSession {
-  certificateId: string;
   txHash: string;
   blockNumber: number;
   timestamp: string;
@@ -28,11 +27,8 @@ export function generateCheckoutSession(productId: string, seed: number): Checko
   const s1 = seededInt(seed ^ idHash);
   const txHash = `0x${seededHex(s1, 64)}`;
   const blockNumber = 24_000_000 + (s1 % 999_983);
-  const certPart = seededHex(seededInt(s1 + 7), 8).toUpperCase();
-  const certificateId = `TEST-${certPart.slice(0, 4)}-${certPart.slice(4)}`;
 
   return {
-    certificateId,
     txHash,
     blockNumber,
     timestamp: new Date(seed).toISOString(),

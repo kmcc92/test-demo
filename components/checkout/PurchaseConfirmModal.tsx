@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { Product } from "@/lib/mock-data";
-import type { SavedCard } from "@/lib/payment-storage";
 import { formatPrice, formatAddress } from "@/lib/utils";
 import GoldButton from "@/components/ui/GoldButton";
 
@@ -12,12 +11,6 @@ const GOLD = "#C9A84C";
 const BLACK = "#080808";
 const MUTED = "#6b6b6b";
 const BORDER = "#e0e0e0";
-
-const CARD_LABEL: Record<SavedCard["cardType"], string> = {
-  visa: "Visa",
-  mastercard: "Mastercard",
-  other: "Card",
-};
 
 interface ConfirmRowProps {
   label: string;
@@ -62,7 +55,6 @@ function ConfirmRow({ label, value, gold }: ConfirmRowProps) {
 
 interface PurchaseConfirmModalProps {
   product: Product;
-  card: SavedCard;
   walletAddress: `0x${string}`;
   onConfirm: () => void;
   onClose: () => void;
@@ -70,7 +62,6 @@ interface PurchaseConfirmModalProps {
 
 export default function PurchaseConfirmModal({
   product,
-  card,
   walletAddress,
   onConfirm,
   onClose,
@@ -152,10 +143,6 @@ export default function PurchaseConfirmModal({
           {/* Details rows */}
           <div style={{ borderTop: `1px solid ${BORDER}`, marginBottom: "32px" }}>
             <ConfirmRow label="Price" value={formatPrice(product.price)} gold />
-            <ConfirmRow
-              label="Payment"
-              value={`${CARD_LABEL[card.cardType]} •••• ${card.lastFour}`}
-            />
             <ConfirmRow label="Wallet" value={formatAddress(walletAddress)} />
           </div>
 

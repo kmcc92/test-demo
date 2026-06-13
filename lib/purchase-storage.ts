@@ -6,7 +6,6 @@ export interface PurchaseRecord {
   productId: string;
   productName: string;
   certificateId: string;
-  productCertificateId?: string; // product's pre-defined cert ID (exclusive items)
   txHash: string;
   price: number;
   purchasedAt: string;

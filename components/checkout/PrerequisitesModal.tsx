@@ -11,22 +11,14 @@ const MUTED = "#6b6b6b";
 const BORDER = "#e0e0e0";
 
 const COPY = {
-  card: {
-    title: "Payment Method Required",
-    body: "Please add a payment method before purchasing. You can do this in My Account.",
-  },
   wallet: {
     title: "Wallet Required",
     body: "Please connect your wallet to purchase authenticated pieces. You can do this in My Account.",
   },
-  both: {
-    title: "Setup Required",
-    body: "Please connect your wallet to purchase authenticated pieces, and add a payment method before purchasing. You can do this in My Account.",
-  },
 };
 
 interface PrerequisitesModalProps {
-  missing: ("card" | "wallet")[];
+  missing: ("wallet")[];
   onClose: () => void;
 }
 
@@ -34,8 +26,7 @@ export default function PrerequisitesModal({ missing, onClose }: PrerequisitesMo
   if (typeof window === "undefined") return null;
 
   const reduced = useReducedMotion();
-  const hasBoth = missing.length > 1;
-  const copy = hasBoth ? COPY.both : COPY[missing[0]];
+  const copy = COPY[missing[0]];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

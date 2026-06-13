@@ -138,7 +138,6 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
       {step.phase === "confirm" && (
         <PurchaseConfirmModal
           product={step.product}
-          card={step.card}
           walletAddress={step.walletAddress}
           onConfirm={confirm}
           onClose={dismiss}
