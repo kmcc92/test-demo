@@ -4,9 +4,11 @@
 // After logout or page refresh, session purchases are gone and dynamic certs
 // will not verify — this is intentional demo behavior.
 //
-// Static mock certificates (TEST-GOLD-001, TEST-STOLEN-001, etc.) always work.
+// Static mock certificates (TEST-GOLD-001, etc.) always work via the
+// DEPRECATED mock-verify.ts fallback (see identity resolution below).
 
 import { getMockCertificate, type CertificateResult, type ProvenanceRecord } from "@/lib/mock-verify";
+import { getCertificateFromRegistry } from "@/lib/certificate-registry";
 import { getCertificateStatusRecord } from "@/lib/certificate-status";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
@@ -53,9 +55,20 @@ function buildAuthenticatedResult(
 // ownerEmail: the current user's email, used for provenance when no wallet is connected.
 //
 // Lookup order:
-//   1. Search active session purchases by certificateId.
-//   2. If found → return AUTHENTICATED result.
-//   3. If not found → fall back to static mock certificates (unchanged behavior).
+//   1. OWNERSHIP (unchanged): active session purchases by certificateId →
+//      AUTHENTICATED result built directly from the purchase record. This
+//      covers dynamic certs minted at purchase time that never appear in
+//      the registry or mock-verify, so it intentionally runs before identity
+//      resolution and is preserved as-is.
+//   2. IDENTITY RESOLUTION (only when not purchased this session) — strict
+//      short-circuit, no merging:
+//        a. lib/certificate-registry.ts (PRIMARY) — merchant-issued certs,
+//           registered at product-creation time. If found, return
+//           immediately as "authenticated" + registryUnowned: true.
+//        b. DEPRECATED: mock-verify.ts is a legacy fallback pending
+//           deletion after certificate-registry.ts is proven stable.
+//           Do NOT add new certificates to mock-verify.ts ever.
+//        c. Neither → not_found.
 export async function lookupCertificate(
   id: string,
   sessionPurchases: PurchaseRecord[],
@@ -76,9 +89,19 @@ export async function lookupCertificate(
   if (match) {
     result = buildAuthenticatedResult(match, ownerEmail);
   } else {
-    // Step 2: Fall back to static mock certificates (synchronous — delay already applied).
-    const mockResult = getMockCertificate(id);
-    result = mockResult ?? { status: "not_found", certificateId: id };
+    // Step 2: Identity resolution — registry wins over mock-verify, no merging.
+    const registryEntry = getCertificateFromRegistry(id);
+    if (registryEntry) {
+      result = {
+        status: "authenticated",
+        certificateId: registryEntry.certificateId,
+        itemName: registryEntry.productName,
+        registryUnowned: true,
+      };
+    } else {
+      const mockResult = getMockCertificate(id);
+      result = mockResult ?? { status: "not_found", certificateId: id };
+    }
   }
 
   // Status overlay is UI enrichment only, applied after the result is resolved

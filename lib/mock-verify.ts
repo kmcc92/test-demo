@@ -26,8 +26,14 @@ export interface CertificateResult {
   reportedStatus?: "active" | "stolen" | "lost";
   reportedDate?: string;
   reportedLocation?: string;
+  // Set when this result came from lib/certificate-registry.ts and has not
+  // yet been purchased — see lib/verify-lookup.ts identity resolution.
+  registryUnowned?: boolean;
 }
 
+// DEPRECATED: mock-verify.ts is a legacy fallback pending deletion after
+// certificate-registry.ts is proven stable. Do NOT add new certificates to
+// mock-verify.ts ever.
 export const CERTIFICATES: Record<string, CertificateResult> = {
   "TEST-GOLD-001": {
     status: "authenticated",

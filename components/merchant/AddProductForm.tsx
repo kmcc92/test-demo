@@ -8,6 +8,7 @@ import {
   isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
+import { registerCertificate } from "@/lib/certificate-registry";
 
 interface AddProductFormProps {
   onSuccess?: () => void;
@@ -126,6 +127,16 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
     };
 
     addMerchantProduct(product);
+
+    // Minting event — certificateId becomes a known identity the moment
+    // the merchant creates the exclusive product.
+    if (product.certificateId) {
+      registerCertificate({
+        certificateId: product.certificateId,
+        productName: product.name,
+      });
+    }
+
     onSuccess?.();
     setSuccess(true);
     setName("");

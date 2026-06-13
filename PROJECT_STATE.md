@@ -134,6 +134,37 @@ AUCTION_3: "2026-08-20T20:00:00Z",
     filter was added directly to filteredEntries instead. getVisibleProducts() itself is
     unchanged.
 
+- [x] Certificate Registry — Phase 1
+  - lib/certificate-registry.ts (NEW) — primary certificateId identity authority. Same
+    storage pattern as certificate-status.ts (localStorage, test_certificate_registry_v1,
+    normalized uppercase keys, SSR-safe). Exports registerCertificate (idempotent,
+    no-op + console.warn on falsy certificateId), getCertificateFromRegistry,
+    listRegisteredCertificates, isCertificateRegistered.
+  - Minting event wired into BOTH exclusive-product-creation flows (diagnosis found two —
+    components/merchant/AddProductForm.tsx used by /merchant/shop, and the separate inline
+    handleAddSubmit in app/merchant/exclusive/page.tsx, which is the primary exclusive-piece
+    creation UI). Both call registerCertificate({certificateId, productName}) right after
+    addMerchantProduct().
+  - lib/mock-verify.ts — DEPRECATED as legacy fallback (frozen, not deleted, no new
+    CERTIFICATES entries). CertificateResult gained optional registryUnowned?: boolean.
+  - lib/verify-lookup.ts — new identity resolution: registry checked before mock-verify,
+    registry result wins with no merging (mock-verify not consulted if registry hits).
+    DEVIATION FROM SPEC: the contract specified ownership overlay strictly AFTER identity
+    resolution ("only if identity resolved"). Diagnosis found the existing session-purchase
+    check runs FIRST and builds a full result directly from the purchase record — this is
+    how dynamic certs (mock-data exclusive items bought this session, e.g. TEST-GOLD-005..018)
+    verify today, since they exist in neither the registry nor mock-verify CERTIFICATES.
+    Moving ownership after identity resolution would make those return not_found despite
+    being owned — a regression of existing, working purchase-verification behavior and a
+    likely violation of "do not modify ownership... logic." Per established precedent, the
+    existing ownership-first check was preserved unchanged; the new registry → mock-verify →
+    not_found short-circuit applies only to the not-yet-purchased branch.
+  - app/verify/page.tsx — new ResultCard branch for status === "authenticated" &&
+    registryUnowned: "AUTHENTIC — UNOWNED" card showing product name + certificate ID and
+    "This item has been authenticated but has not yet been purchased." Status overlay
+    (stolen/lost banner) still applies on top, unchanged.
+  - npx tsc --noEmit passes.
+
 **Phase 5 — Deploy**
 - [ ] vercel deploy --prod
 - [ ] Script tested on live URL

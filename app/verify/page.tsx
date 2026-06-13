@@ -255,6 +255,60 @@ function ResultCard({
     exit: reduced ? {} : { opacity: 0, y: -16 },
   };
 
+  if (result.status === "authenticated" && result.registryUnowned) {
+    return (
+      <motion.div
+        variants={cardVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-lg mx-auto mt-10 border border-[var(--border-gold)] p-8"
+      >
+        <GoldCheckmark reduced={reduced} />
+
+        <motion.div
+          initial={reduced ? {} : { opacity: 0 }}
+          animate={reduced ? {} : { opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="text-center mb-8"
+        >
+          <p className="text-[10px] tracking-[0.4em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)] mb-2">
+            Authentic — Unowned
+          </p>
+          <h2 className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
+            {result.itemName}
+          </h2>
+        </motion.div>
+
+        <motion.div
+          initial={reduced ? {} : { opacity: 0 }}
+          animate={reduced ? {} : { opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
+          className="space-y-3 mb-6 border border-[var(--border)] p-5"
+        >
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+              Certificate
+            </span>
+            <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--gold)]">
+              {result.certificateId}
+            </span>
+          </div>
+        </motion.div>
+
+        <motion.p
+          initial={reduced ? {} : { opacity: 0 }}
+          animate={reduced ? {} : { opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.7 }}
+          className="text-center text-xs font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] leading-relaxed"
+        >
+          This item has been authenticated but has not yet been purchased.
+        </motion.p>
+      </motion.div>
+    );
+  }
+
   if (result.status === "authenticated") {
     return (
       <motion.div
