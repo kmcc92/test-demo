@@ -191,6 +191,35 @@ function BlockchainPanel({
   );
 }
 
+function ReportedStatusBanner({
+  status,
+  reduced,
+}: {
+  status: "active" | "stolen" | "lost";
+  reduced: boolean | null;
+}) {
+  if (status === "active") return null;
+
+  const copy =
+    status === "stolen"
+      ? "THIS ITEM HAS BEEN REPORTED STOLEN"
+      : "THIS ITEM HAS BEEN REPORTED LOST";
+
+  return (
+    <motion.div
+      initial={reduced ? {} : { opacity: 0, y: -8 }}
+      animate={reduced ? {} : { opacity: 1, y: 0 }}
+      exit={reduced ? {} : { opacity: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="w-full max-w-lg mx-auto mt-10 border border-red-900/50 bg-red-950/10 px-5 py-3 text-center"
+    >
+      <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-red-400">
+        ⚠ {copy}
+      </p>
+    </motion.div>
+  );
+}
+
 function ResultCard({
   result,
   reduced,
@@ -711,6 +740,17 @@ export default function VerifyPage() {
           </GoldButton>
         </div>
       </motion.div>
+
+      {/* Status overlay banner — UI enrichment only, decided in lib/verify-lookup.ts */}
+      <AnimatePresence>
+        {result?.reportedStatus && result.reportedStatus !== "active" && (
+          <ReportedStatusBanner
+            key={result.certificateId + "-status"}
+            status={result.reportedStatus}
+            reduced={reduced}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Result — verification system is sole authority, always rendered first */}
       <AnimatePresence mode="wait">

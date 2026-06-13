@@ -21,9 +21,12 @@ export interface CertificateResult {
   previousOwner?: string;
   revokedReason?: string;
   provenance?: ProvenanceRecord[];
+  // Status overlay (lib/certificate-status.ts) — UI enrichment only, attached
+  // after the verification result itself has been resolved.
+  reportedStatus?: "active" | "stolen" | "lost";
 }
 
-const CERTIFICATES: Record<string, CertificateResult> = {
+export const CERTIFICATES: Record<string, CertificateResult> = {
   "TEST-GOLD-001": {
     status: "authenticated",
     certificateId: "TEST-GOLD-001",
@@ -72,51 +75,6 @@ const CERTIFICATES: Record<string, CertificateResult> = {
         owner: "TEST Workshop, Milano",
         action: "Minted",
         date: "2024-09-12",
-      },
-    ],
-  },
-  "TEST-REVOKED-001": {
-    status: "revoked",
-    certificateId: "TEST-REVOKED-001",
-    itemName: "Unreleased Sample — S/S 2025",
-    edition: "SAMPLE",
-    mintDate: "2025-01-05",
-    revokedReason: "Sample certificate — item never entered commercial release.",
-    provenance: [
-      {
-        owner: "TEST Workshop, Milano",
-        action: "Certificate revoked",
-        date: "2025-03-01",
-      },
-      {
-        owner: "TEST Workshop, Milano",
-        action: "Minted",
-        date: "2025-01-05",
-      },
-    ],
-  },
-  "TEST-STOLEN-001": {
-    status: "stolen",
-    certificateId: "TEST-STOLEN-001",
-    itemName: "Archive Leather Jacket — 1991",
-    edition: "UNIQUE",
-    mintDate: "2024-10-30",
-    owner: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-    provenance: [
-      {
-        owner: "FLAGGED",
-        action: "Reported stolen",
-        date: "2025-04-11",
-      },
-      {
-        owner: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
-        action: "Acquired",
-        date: "2025-02-17",
-      },
-      {
-        owner: "TEST Workshop, Milano",
-        action: "Minted",
-        date: "2024-10-30",
       },
     ],
   },

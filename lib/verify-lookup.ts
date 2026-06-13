@@ -7,6 +7,7 @@
 // Static mock certificates (TEST-GOLD-001, TEST-STOLEN-001, etc.) always work.
 
 import { getMockCertificate, type CertificateResult, type ProvenanceRecord } from "@/lib/mock-verify";
+import { getCertificateStatus } from "@/lib/certificate-status";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
 function buildAuthenticatedResult(
@@ -70,16 +71,21 @@ export async function lookupCertificate(
     (p) => p.certificateId.toUpperCase() === normalized
   );
 
+  let result: CertificateResult;
+
   if (match) {
-    return buildAuthenticatedResult(match, ownerEmail);
+    result = buildAuthenticatedResult(match, ownerEmail);
+  } else {
+    // Step 2: Fall back to static mock certificates (synchronous — delay already applied).
+    const mockResult = getMockCertificate(id);
+    result = mockResult ?? { status: "not_found", certificateId: id };
   }
 
-  // Step 2: Fall back to static mock certificates (synchronous — delay already applied).
-  const mockResult = getMockCertificate(id);
-  if (mockResult) return mockResult;
+  // Status overlay is UI enrichment only, applied after the result is resolved
+  // and never influences the found/authenticated determination above.
+  if (result.status !== "not_found") {
+    result = { ...result, reportedStatus: getCertificateStatus(result.certificateId) };
+  }
 
-  return {
-    status: "not_found",
-    certificateId: id,
-  };
+  return result;
 }

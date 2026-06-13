@@ -32,7 +32,7 @@ Track each step of the scripted path independently — these are the only things
 - [x] PLACE BID → bid appears in history + price updates + toast fires
 - [x] VERIFY page loads cleanly
 - [x] TEST-GOLD-001 → AUTHENTICATED with gold checkmark animation
-- [x] TEST-STOLEN-001 → FLAGGED red warning state
+- [BROKEN] TEST-STOLEN-001 → FLAGGED red warning state — REGRESSION, see ACTIVE ISSUES
 - [ ] Full script runs start-to-finish without hesitation ← final check before deploy
 
 ---
@@ -61,7 +61,7 @@ AUCTION_3: "2026-08-20T20:00:00Z",
 - [x] Fonts loaded (Cormorant Garamond, DM Sans, IBM Plex Mono via next/font/google)
 - [x] lib/utils.ts
 - [x] lib/mock-data.ts (with presentation-safe countdown dates: 2026-08-15+)
-- [x] lib/mock-verify.ts (all 5 certificate states)
+- [x] lib/mock-verify.ts (CERTIFICATES: TEST-GOLD-001 authenticated, TEST-GOLD-002 transferred — TEST-REVOKED-001/TEST-STOLEN-001 removed, see ACTIVE ISSUES)
 - [x] components/ui/GoldButton.tsx
 - [x] components/ui/PageTransition.tsx
 - [x] components/ui/LoadingShimmer.tsx
@@ -105,6 +105,11 @@ AUCTION_3: "2026-08-20T20:00:00Z",
 - [ ] Mobile QA
 - [ ] Animation timing pass
 - [x] Countdown dates verified 48h+ ahead (2026-08-15, -08-18, -08-20 — 89+ days past 2026-05-18)
+- [x] lib/certificate-status.ts — client-side certificate status overlay (active/stolen/lost),
+  localStorage-backed, SSR-safe (returns "active" on server)
+  - lib/verify-lookup.ts attaches result.reportedStatus after lookup resolves
+  - app/verify/page.tsx renders a "REPORTED STOLEN"/"REPORTED LOST" banner from reportedStatus
+  - lib/merchant-storage.ts getStaticCertificateIds() now Object.keys(CERTIFICATES)
 
 **Phase 5 — Deploy**
 - [ ] vercel deploy --prod
@@ -173,6 +178,17 @@ AUCTION_3: "2026-08-20T20:00:00Z",
 - /auctions/[id] image gallery thumbnails are placeholder containers only — swipe not implemented
   (acceptable for demo)
 - RainbowKit WalletConnect option will fail silently (placeholder projectId) — injected wallets (MetaMask etc.) display correctly in modal
+
+- REGRESSION (Certificate Status Overlay System): TEST-STOLEN-001 and
+  TEST-REVOKED-001 were removed from lib/mock-verify.ts CERTIFICATES per
+  explicit instruction. /verify?id=TEST-STOLEN-001 now returns
+  "CERTIFICATE NOT FOUND" instead of the FLAGGED red warning state.
+  This breaks PRESENTATION SCRIPT step 4's TEST-STOLEN-001 demo beat
+  (PROJECT_SPEC.md). Accepted knowingly — if this step is needed again
+  before a presentation, either re-add a stolen-status certificate to
+  CERTIFICATES, or use the new overlay system (lib/certificate-status.ts:
+  reportStolen("TEST-GOLD-001")) to demo the new "REPORTED STOLEN" banner
+  on an existing certificate instead.
 ```
 
 ---
