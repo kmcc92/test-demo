@@ -193,9 +193,13 @@ function BlockchainPanel({
 
 function ReportedStatusBanner({
   status,
+  reportedDate,
+  reportedLocation,
   reduced,
 }: {
   status: "active" | "stolen" | "lost";
+  reportedDate?: string;
+  reportedLocation?: string;
   reduced: boolean | null;
 }) {
   if (status === "active") return null;
@@ -216,6 +220,20 @@ function ReportedStatusBanner({
       <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-red-400">
         ⚠ {copy}
       </p>
+      {(reportedDate || reportedLocation) && (
+        <div className="mt-2 space-y-0.5">
+          {reportedDate && (
+            <p className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-red-300/80">
+              Reported on: {reportedDate}
+            </p>
+          )}
+          {reportedLocation && (
+            <p className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-red-300/80">
+              Location: {reportedLocation}
+            </p>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -747,6 +765,8 @@ export default function VerifyPage() {
           <ReportedStatusBanner
             key={result.certificateId + "-status"}
             status={result.reportedStatus}
+            reportedDate={result.reportedDate}
+            reportedLocation={result.reportedLocation}
             reduced={reduced}
           />
         )}

@@ -24,6 +24,8 @@ export interface CertificateResult {
   // Status overlay (lib/certificate-status.ts) — UI enrichment only, attached
   // after the verification result itself has been resolved.
   reportedStatus?: "active" | "stolen" | "lost";
+  reportedDate?: string;
+  reportedLocation?: string;
 }
 
 export const CERTIFICATES: Record<string, CertificateResult> = {

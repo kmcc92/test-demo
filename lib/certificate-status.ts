@@ -12,6 +12,14 @@ export interface CertificateStatusRecord {
   certificateId: string;
   status: CertificateStatus;
   reportedAt?: string;
+  reportedDate?: string;
+  reportedLocation?: string;
+  note?: string;
+}
+
+export interface ReportDetails {
+  reportedDate?: string;
+  reportedLocation?: string;
   note?: string;
 }
 
@@ -54,7 +62,7 @@ function writeStore(store: StatusStore): void {
 }
 
 export function getCertificateStatus(certificateId: string): CertificateStatus {
-  if (!isBrowser()) return "active";
+  if (!certificateId || !isBrowser()) return "active";
   const normalized = certificateId.trim().toUpperCase();
   const record = readStore().records.find(
     (r) => r.certificateId.toUpperCase() === normalized
@@ -62,12 +70,24 @@ export function getCertificateStatus(certificateId: string): CertificateStatus {
   return record?.status ?? "active";
 }
 
+// Pure read — returns the full status record (including reported date/location/note)
+// or null if no record exists. Never writes to storage.
+export function getCertificateStatusRecord(
+  certificateId: string
+): CertificateStatusRecord | null {
+  if (!certificateId || !isBrowser()) return null;
+  const normalized = certificateId.trim().toUpperCase();
+  return (
+    readStore().records.find((r) => r.certificateId.toUpperCase() === normalized) ?? null
+  );
+}
+
 export function setCertificateStatus(
   certificateId: string,
   status: CertificateStatus,
-  note?: string
+  details?: ReportDetails
 ): void {
-  if (!isBrowser()) return;
+  if (!certificateId || !isBrowser()) return;
   const normalized = certificateId.trim().toUpperCase();
   const store = readStore();
   const records = store.records.filter(
@@ -78,18 +98,34 @@ export function setCertificateStatus(
       certificateId: normalized,
       status,
       reportedAt: new Date().toISOString(),
-      note,
+      reportedDate: details?.reportedDate,
+      reportedLocation: details?.reportedLocation,
+      note: details?.note,
     });
   }
   writeStore({ records });
 }
 
-export function reportStolen(certificateId: string, note?: string): void {
-  setCertificateStatus(certificateId, "stolen", note);
+export function reportStolen(
+  certificateId: string,
+  details?: { dateStolen?: string; location?: string; note?: string }
+): void {
+  setCertificateStatus(certificateId, "stolen", {
+    reportedDate: details?.dateStolen,
+    reportedLocation: details?.location,
+    note: details?.note,
+  });
 }
 
-export function reportLost(certificateId: string, note?: string): void {
-  setCertificateStatus(certificateId, "lost", note);
+export function reportLost(
+  certificateId: string,
+  details?: { dateLost?: string; location?: string; note?: string }
+): void {
+  setCertificateStatus(certificateId, "lost", {
+    reportedDate: details?.dateLost,
+    reportedLocation: details?.location,
+    note: details?.note,
+  });
 }
 
 export function clearStatus(certificateId: string): void {

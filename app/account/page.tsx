@@ -15,7 +15,13 @@ import PaymentMethods from "@/components/account/PaymentMethods";
 import Wishlist from "@/components/account/Wishlist";
 import OrderTracking from "@/components/account/OrderTracking";
 import CreateListingModal from "@/components/marketplace/CreateListingModal";
+import ReportStatusModal from "@/components/certificate-status/ReportStatusModal";
 import GoldButton from "@/components/ui/GoldButton";
+import {
+  getCertificateStatusRecord,
+  clearStatus,
+  type CertificateStatusRecord,
+} from "@/lib/certificate-status";
 
 function getProductImage(productId: string): string {
   const product = PRODUCTS.find((p) => p.id === productId);
@@ -55,12 +61,28 @@ export default function AccountPage() {
   const [walletMounted, setWalletMounted] = useState(false);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
   const [listingTarget, setListingTarget] = useState<{ purchase: PurchaseRecord; image: string } | null>(null);
+  const [statusMap, setStatusMap] = useState<Record<string, CertificateStatusRecord | null>>({});
+  const [reportTarget, setReportTarget] = useState<{ certificateId: string; itemName: string; type: "stolen" | "lost" } | null>(null);
 
   useEffect(() => { setWalletMounted(true); }, []);
 
   useEffect(() => {
     if (isLoaded && !user) router.push("/");
   }, [isLoaded, user, router]);
+
+  // Certificate status overlay — client-only lookup, refreshed whenever purchases change.
+  useEffect(() => {
+    const map: Record<string, CertificateStatusRecord | null> = {};
+    purchases.forEach((p) => {
+      if (p.certificateId) map[p.certificateId] = getCertificateStatusRecord(p.certificateId);
+    });
+    setStatusMap(map);
+  }, [purchases]);
+
+  function handleClearReport(certificateId: string) {
+    clearStatus(certificateId);
+    setStatusMap((prev) => ({ ...prev, [certificateId]: null }));
+  }
 
   if (!isLoaded || !user) return null;
 
@@ -217,6 +239,50 @@ export default function AccountPage() {
                           List for Auction
                         </GoldButton>
                       )}
+
+                      {/* Certificate status overlay — report stolen/lost or clear an existing report */}
+                      {(() => {
+                        const statusRecord = statusMap[purchase.certificateId];
+                        const status = statusRecord?.status ?? "active";
+                        if (status === "active") {
+                          return (
+                            <div className="flex gap-4 mt-3">
+                              <button
+                                onClick={() => setReportTarget({ certificateId: purchase.certificateId, itemName: purchase.productName, type: "stolen" })}
+                                className="text-[9px] tracking-[0.2em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] hover:text-red-500 underline underline-offset-4 transition-colors"
+                              >
+                                Report Stolen
+                              </button>
+                              <button
+                                onClick={() => setReportTarget({ certificateId: purchase.certificateId, itemName: purchase.productName, type: "lost" })}
+                                className="text-[9px] tracking-[0.2em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] hover:text-red-500 underline underline-offset-4 transition-colors"
+                              >
+                                Report Lost
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="mt-3">
+                            <span className="inline-block text-[9px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-red-400 border border-red-900/40 px-2 py-1 mb-2">
+                              {status === "stolen" ? "Reported Stolen" : "Reported Lost"}
+                            </span>
+                            {(statusRecord?.reportedDate || statusRecord?.reportedLocation) && (
+                              <p className="font-[family-name:var(--font-ibm-mono)] text-[9px] text-[var(--text-muted)] mb-2">
+                                {statusRecord?.reportedDate ? `Reported ${statusRecord.reportedDate}` : ""}
+                                {statusRecord?.reportedDate && statusRecord?.reportedLocation ? " — " : ""}
+                                {statusRecord?.reportedLocation ?? ""}
+                              </p>
+                            )}
+                            <button
+                              onClick={() => handleClearReport(purchase.certificateId)}
+                              className="text-[9px] tracking-[0.2em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] hover:text-[var(--gold)] underline underline-offset-4 transition-colors"
+                            >
+                              Clear Report
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Price */}
@@ -351,6 +417,20 @@ export default function AccountPage() {
           purchase={listingTarget.purchase}
           image={listingTarget.image}
           onClose={() => setListingTarget(null)}
+        />
+      )}
+
+      {/* ── Report Stolen/Lost Modal ─────────────────── */}
+      {reportTarget && (
+        <ReportStatusModal
+          certificateId={reportTarget.certificateId}
+          itemName={reportTarget.itemName}
+          type={reportTarget.type}
+          onClose={() => setReportTarget(null)}
+          onReported={() => {
+            const certificateId = reportTarget.certificateId;
+            setStatusMap((prev) => ({ ...prev, [certificateId]: getCertificateStatusRecord(certificateId) }));
+          }}
         />
       )}
 

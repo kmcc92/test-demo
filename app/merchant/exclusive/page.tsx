@@ -12,6 +12,12 @@ import {
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 import { getCertificates, type Certificate } from "@/lib/certificate-storage";
+import {
+  getCertificateStatusRecord,
+  clearStatus,
+  type CertificateStatusRecord,
+} from "@/lib/certificate-status";
+import ReportStatusModal from "@/components/certificate-status/ReportStatusModal";
 import { formatPrice } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
@@ -88,6 +94,8 @@ export default function MerchantExclusivePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ name: "", description: "", price: "", image: "" });
+  const [statusMap, setStatusMap] = useState<Record<string, CertificateStatusRecord | null>>({});
+  const [reportTarget, setReportTarget] = useState<{ certificateId: string; itemName: string; type: "stolen" | "lost" } | null>(null);
 
   // Add form state
   const [addName, setAddName] = useState("");
@@ -99,8 +107,19 @@ export default function MerchantExclusivePage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   function refresh() {
-    setProducts(getMerchantProductsByType("exclusive"));
+    const list = getMerchantProductsByType("exclusive");
+    setProducts(list);
     setCertificates(getCertificates());
+    const map: Record<string, CertificateStatusRecord | null> = {};
+    list.forEach((p) => {
+      if (p.certificateId) map[p.certificateId] = getCertificateStatusRecord(p.certificateId);
+    });
+    setStatusMap(map);
+  }
+
+  function handleClearStatus(certificateId: string) {
+    clearStatus(certificateId);
+    setStatusMap((prev) => ({ ...prev, [certificateId]: null }));
   }
 
   useEffect(() => { refresh(); }, []);
@@ -472,6 +491,51 @@ export default function MerchantExclusivePage() {
                           </p>
                         )}
 
+                        {/* Certificate status overlay — mark stolen/lost or clear an existing report */}
+                        {product.certificateId && (() => {
+                          const certificateId = product.certificateId!;
+                          const statusRecord = statusMap[certificateId];
+                          const status = statusRecord?.status ?? "active";
+                          if (status === "active") {
+                            return (
+                              <div style={{ display: "flex", gap: 12, marginBottom: 4 }}>
+                                <button
+                                  onClick={() => setReportTarget({ certificateId, itemName: product.name, type: "stolen" })}
+                                  style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, background: "none", border: "none", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+                                >
+                                  Mark Stolen
+                                </button>
+                                <button
+                                  onClick={() => setReportTarget({ certificateId, itemName: product.name, type: "lost" })}
+                                  style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, background: "none", border: "none", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+                                >
+                                  Mark Lost
+                                </button>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div style={{ marginBottom: 4 }}>
+                              <span style={{ fontSize: 8, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: RED, border: `1px solid rgba(192,57,43,0.4)`, padding: "2px 7px", marginRight: 8 }}>
+                                {status === "stolen" ? "Marked Stolen" : "Marked Lost"}
+                              </span>
+                              <button
+                                onClick={() => handleClearStatus(certificateId)}
+                                style={{ fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, background: "none", border: "none", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+                              >
+                                Clear Status
+                              </button>
+                              {(statusRecord?.reportedDate || statusRecord?.reportedLocation) && (
+                                <p style={{ fontSize: 9, fontFamily: "var(--font-ibm-mono), monospace", color: MUTED, marginTop: 4 }}>
+                                  {statusRecord?.reportedDate ? `Reported ${statusRecord.reportedDate}` : ""}
+                                  {statusRecord?.reportedDate && statusRecord?.reportedLocation ? " — " : ""}
+                                  {statusRecord?.reportedLocation ?? ""}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+
                         {product.description && (
                           <p style={{ fontSize: 11, fontFamily: "var(--font-dm-sans), sans-serif", color: MUTED, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {product.description}
@@ -561,6 +625,20 @@ export default function MerchantExclusivePage() {
           </div>
         )}
       </div>
+
+      {/* ── Report Stolen/Lost Modal ─────────────────── */}
+      {reportTarget && (
+        <ReportStatusModal
+          certificateId={reportTarget.certificateId}
+          itemName={reportTarget.itemName}
+          type={reportTarget.type}
+          onClose={() => setReportTarget(null)}
+          onReported={() => {
+            const certificateId = reportTarget.certificateId;
+            setStatusMap((prev) => ({ ...prev, [certificateId]: getCertificateStatusRecord(certificateId) }));
+          }}
+        />
+      )}
     </div>
   );
 }

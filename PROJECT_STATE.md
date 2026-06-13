@@ -110,6 +110,29 @@ AUCTION_3: "2026-08-20T20:00:00Z",
   - lib/verify-lookup.ts attaches result.reportedStatus after lookup resolves
   - app/verify/page.tsx renders a "REPORTED STOLEN"/"REPORTED LOST" banner from reportedStatus
   - lib/merchant-storage.ts getStaticCertificateIds() now Object.keys(CERTIFICATES)
+- [x] Report Stolen/Lost — full feature
+  - lib/certificate-status.ts: CertificateStatusRecord extended with reportedDate/reportedLocation;
+    reportStolen()/reportLost() accept {dateStolen|dateLost, location, note}; reportedAt always
+    auto-set; new pure-read getCertificateStatusRecord(); SAFEGUARD 3 falsy-certificateId guards
+    added to getCertificateStatus/getCertificateStatusRecord/setCertificateStatus
+  - components/certificate-status/ReportStatusModal.tsx — shared modal (date/location/note +
+    library-removal warning) used by both /account and merchant
+  - app/account/page.tsx — Authenticated Pieces rows show Report Stolen/Lost actions, status
+    badge + reported details, and Clear Report
+  - app/merchant/exclusive/page.tsx — same status badge/actions (Mark Stolen/Lost/Clear Status)
+    on each inventory card, same shared functions (last-write-wins, no merge UI)
+  - components/library/LibraryContent.tsx — filteredEntries (NOT getVisibleProducts, see
+    DEVIATION below) now excludes entries whose certificateId has status stolen/lost; brief
+    SSR->client flicker is expected (status overlay is "active" on server)
+  - lib/verify-lookup.ts / app/verify/page.tsx — stolen/lost banner now also shows
+    reportedDate/reportedLocation when present; verification result itself unaffected
+  - DEVIATION FROM SPEC: the request specified adding the library-exclusion filter inside
+    getVisibleProducts() (lib/market-state.ts) as "the only place this filter is added."
+    Diagnosis found /library never calls getVisibleProducts() — its visibility is governed
+    entirely by LibraryContent.tsx's own filteredEntries. Implementing the filter in
+    getVisibleProducts() would have had zero effect on /library, so (per user decision) the
+    filter was added directly to filteredEntries instead. getVisibleProducts() itself is
+    unchanged.
 
 **Phase 5 — Deploy**
 - [ ] vercel deploy --prod

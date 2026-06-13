@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { PRODUCTS, type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
 import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
+import { getCertificateStatus } from "@/lib/certificate-status";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
@@ -588,8 +589,15 @@ export default function LibraryContent({
 
   const [merchantProducts, setMerchantProducts] = useState<MerchantProduct[]>([]);
 
+  // Certificate status overlay is client-only (lib/certificate-status.ts returns
+  // "active" on the server). `mounted` forces a re-filter after hydration so the
+  // status-based exclusion below takes effect — a brief flicker for stolen/lost
+  // items on first paint is expected and acceptable.
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
     setMerchantProducts(getMerchantProductsByType("exclusive"));
+    setMounted(true);
   }, []);
 
   const merchantLibraryEntries = useMemo<LibraryEntry[]>(
@@ -650,9 +658,18 @@ export default function LibraryContent({
 
   // Archive entries without a productId are always shown; entries with a productId
   // are shown only when they come from the known library layers (purchase-derived or merchant).
+  // Additionally, entries whose certificate has been reported stolen/lost (status overlay,
+  // lib/certificate-status.ts) are excluded — this is the sole place that filter is applied.
   const filteredEntries = useMemo(
-    () => displayEntries.filter((e) => !e.productId || e.certificateId.length > 0),
-    [displayEntries]
+    () =>
+      displayEntries.filter((e) => {
+        if (!e.productId) return true;
+        if (e.certificateId.length === 0) return false;
+        const status = getCertificateStatus(e.certificateId);
+        return status !== "stolen" && status !== "lost";
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [displayEntries, mounted]
   );
 
   // Derive ownership map from eligible purchases only.
