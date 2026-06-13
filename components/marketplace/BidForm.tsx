@@ -92,6 +92,22 @@ export default function BidForm({ listing }: BidFormProps) {
         >
           {formatPrice(listing.currentBid)}
         </motion.p>
+
+        {listing.buyNowPrice !== undefined && (
+          <div className="mt-4 pt-4 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)]">
+                Buy Now Price
+              </p>
+              <span className="font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--gold)]">
+                {formatPrice(listing.buyNowPrice)}
+              </span>
+            </div>
+            <p className="text-[10px] font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+              Bid this amount or higher to win instantly
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Bid input */}

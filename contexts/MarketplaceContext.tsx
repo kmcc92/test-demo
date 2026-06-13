@@ -11,7 +11,7 @@ interface MarketplaceContextValue {
   listings: MarketplaceListing[];
   createListing: (params: CreateListingParams) => void;
   placeBid: (listingId: string, bid: Omit<MarketplaceBid, "id">) => void;
-  settleAuction: (listingId: string) => void;
+  settleAuction: (listingId: string, options?: { force?: boolean }) => void;
   getListingById: (listingId: string) => MarketplaceListing | null;
   getListingByProductId: (productId: string) => MarketplaceListing | null;
   isListed: (productId: string) => boolean;
@@ -44,25 +44,10 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
     setListings((prev) => [...prev, listing]);
   }, []);
 
-  const placeBid = useCallback((listingId: string, bid: Omit<MarketplaceBid, "id">) => {
-    const newBid: MarketplaceBid = {
-      ...bid,
-      id: `bid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    };
-    setListings((prev) =>
-      prev.map((l) => {
-        if (l.id !== listingId) return l;
-        const updatedHistory = [newBid, ...l.bidHistory];
-        const currentBid = Math.max(...updatedHistory.map((b) => b.amount));
-        return { ...l, bidHistory: updatedHistory, currentBid };
-      })
-    );
-  }, []);
-
-  const settleAuction = useCallback((listingId: string) => {
+  const settleAuction = useCallback((listingId: string, options?: { force?: boolean }) => {
     const listing = listingsRef.current.find((l) => l.id === listingId);
     if (!listing || listing.status !== "active") return;
-    if (new Date(listing.endsAt).getTime() >= Date.now()) return;
+    if (!options?.force && new Date(listing.endsAt).getTime() >= Date.now()) return;
 
     const noBids = listing.bidHistory.length === 0;
     const reserveNotMet = listing.currentBid < listing.reservePrice;
@@ -104,6 +89,33 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
     };
     ownership?.addOwnership(record);
   }, [ownership]);
+
+  const placeBid = useCallback((listingId: string, bid: Omit<MarketplaceBid, "id">) => {
+    const newBid: MarketplaceBid = {
+      ...bid,
+      id: `bid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    };
+
+    let triggerInstantBuy = false;
+    const updatedListings = listingsRef.current.map((l) => {
+      if (l.id !== listingId) return l;
+      const updatedHistory = [newBid, ...l.bidHistory];
+      const currentBid = Math.max(...updatedHistory.map((b) => b.amount));
+      if (l.buyNowPrice !== undefined && newBid.amount >= l.buyNowPrice) {
+        triggerInstantBuy = true;
+      }
+      return { ...l, bidHistory: updatedHistory, currentBid };
+    });
+
+    // Keep the ref in sync immediately so settleAuction (called synchronously
+    // below) sees this bid — setListings alone won't update it until re-render.
+    listingsRef.current = updatedListings;
+    setListings(updatedListings);
+
+    if (triggerInstantBuy) {
+      settleAuction(listingId, { force: true });
+    }
+  }, [settleAuction]);
 
   const getListingById = useCallback(
     (listingId: string) => listings.find((l) => l.id === listingId) ?? null,

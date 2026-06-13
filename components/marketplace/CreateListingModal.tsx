@@ -89,6 +89,7 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [reservePrice, setReservePrice] = useState("");
+  const [buyNowPrice, setBuyNowPrice] = useState("");
   const [minimumIncrement, setMinimumIncrement] = useState("50");
   const [duration, setDuration] = useState<AuctionDuration>("48h");
   const [condition, setCondition] = useState("");
@@ -98,6 +99,7 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
   const resetAndClose = useCallback(() => {
     setStep(1);
     setReservePrice("");
+    setBuyNowPrice("");
     setMinimumIncrement("50");
     setDuration("48h");
     setCondition("");
@@ -125,6 +127,7 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
       sellerEmail: user.email,
       sellerWallet: address ?? "",
       reservePrice: parseFloat(reservePrice),
+      buyNowPrice: buyNowPrice.trim() ? parseFloat(buyNowPrice) : undefined,
       minimumIncrement: parseFloat(minimumIncrement) || 50,
       endsAt: new Date(Date.now() + DURATION_MS[duration]).toISOString(),
       condition: condition.trim(),
@@ -135,7 +138,12 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
     setSuccess(true);
   }
 
-  const canProceedStep2 = parseFloat(reservePrice) > 0;
+  const buyNowError =
+    buyNowPrice.trim() !== "" && parseFloat(buyNowPrice) <= parseFloat(reservePrice || "0")
+      ? "Buy Now price must be higher than reserve price"
+      : "";
+
+  const canProceedStep2 = parseFloat(reservePrice) > 0 && !buyNowError;
 
   const STEP_LABELS = ["Item", "Price", "Duration", "Condition", "Review"];
 
@@ -297,6 +305,25 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
                       />
                     </div>
                   </div>
+                  <div style={{ marginBottom: "8px" }}>
+                    <label style={S.label}>Buy Now Price (optional)</label>
+                    <div style={{ position: "relative" }}>
+                      <span style={S.prefix}>$</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={buyNowPrice}
+                        onChange={(e) => setBuyNowPrice(e.target.value)}
+                        placeholder="Leave empty for auction only"
+                        style={S.input}
+                      />
+                    </div>
+                    {buyNowError && (
+                      <p style={{ fontSize: "11px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#c0392b", marginTop: "6px" }}>
+                        {buyNowError}
+                      </p>
+                    )}
+                  </div>
                   <p style={{ fontSize: "11px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#8a8a8a", marginBottom: "32px" }}>
                     Auction starts at your reserve price.
                   </p>
@@ -412,6 +439,7 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
                       { label: "Item", value: purchase.productName, mono: false },
                       { label: "Certificate", value: purchase.certificateId, mono: true, gold: true },
                       { label: "Reserve Price", value: formatPrice(parseFloat(reservePrice)), mono: true },
+                      ...(buyNowPrice.trim() ? [{ label: "Buy Now Price", value: formatPrice(parseFloat(buyNowPrice)), mono: true }] : []),
                       { label: "Min. Increment", value: formatPrice(parseFloat(minimumIncrement) || 50), mono: true },
                       { label: "Duration", value: DURATION_LABELS[duration], mono: false },
                       ...(condition.trim() ? [{ label: "Condition", value: condition.trim(), mono: false }] : []),

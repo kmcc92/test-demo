@@ -15,6 +15,7 @@ export type MarketplaceListing = {
   sellerEmail: string;
   sellerWallet: string;
   reservePrice: number;
+  buyNowPrice?: number;
   currentBid: number;
   minimumIncrement: number;
   endsAt: string;

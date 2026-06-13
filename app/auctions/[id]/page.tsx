@@ -56,6 +56,10 @@ export default function AuctionPage() {
 
   const winner = pickWinner(listing.bidHistory);
   const userWon = !!winner && !!user && user.email === winner.bidderEmail;
+  const wasInstantBuy =
+    !!winner &&
+    listing.buyNowPrice !== undefined &&
+    winner.amount >= listing.buyNowPrice;
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-12 w-full">
@@ -161,7 +165,7 @@ export default function AuctionPage() {
                   /* Current user won */
                   <div className="space-y-4">
                     <p className="text-[9px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold)]">
-                      You Won This Auction
+                      You Won This Auction{wasInstantBuy ? " — Sold (Buy Now)" : ""}
                     </p>
                     <p className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
                       {formatPrice(winner!.amount)}
@@ -191,7 +195,7 @@ export default function AuctionPage() {
                   /* Sold to another bidder */
                   <div className="space-y-3">
                     <p className="text-[9px] tracking-[0.35em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-                      Auction Ended — Sold
+                      Auction Ended — Sold{wasInstantBuy ? " (Buy Now)" : ""}
                     </p>
                     <p className="font-[family-name:var(--font-cormorant)] text-2xl font-light text-[var(--text-primary)] tracking-wide">
                       {winner ? formatPrice(winner.amount) : "—"}
