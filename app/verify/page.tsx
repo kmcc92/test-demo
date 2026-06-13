@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useId } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { type CertificateResult } from "@/lib/mock-verify";
 import { SERVICE_HISTORY } from "@/lib/mock-data";
@@ -582,6 +583,8 @@ function CertificateMetadataCard({
 export default function VerifyPage() {
   const reduced = useReducedMotion();
   const inputId = useId();
+  const searchParams = useSearchParams();
+  const idParam = searchParams.get("certificateId") ?? searchParams.get("id");
   const { address: walletAddress } = useWallet();
   const { purchases } = useOwnership();
   const { user } = useAuth();
@@ -625,15 +628,23 @@ export default function VerifyPage() {
     setCertContext(getCertificateDisplayContext(productId));
   }, [result]);
 
-  async function handleVerify() {
-    if (!inputValue.trim() || isVerifying) return;
+  async function handleVerify(value?: string) {
+    const query = (value ?? inputValue).trim();
+    setInputValue(query);
+    if (!query || isVerifying) return;
     setIsVerifying(true);
     setResult(null);
 
-    const cert = await lookupCertificate(inputValue.trim(), purchases, user?.email ?? undefined);
+    const cert = await lookupCertificate(query, purchases, user?.email ?? undefined);
     setResult(cert);
     setIsVerifying(false);
   }
+
+  useEffect(() => {
+    if (!idParam) return;
+    handleVerify(idParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idParam]);
 
   function handleReset() {
     setResult(null);
@@ -693,7 +704,7 @@ export default function VerifyPage() {
             size="md"
             loading={isVerifying}
             disabled={isVerifying || !inputValue.trim() || !!result}
-            onClick={handleVerify}
+            onClick={() => handleVerify()}
             className="shrink-0 px-8"
           >
             Verify

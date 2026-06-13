@@ -3,12 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
 import type { Product } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/utils";
 import GoldButton from "@/components/ui/GoldButton";
 import { useAuth } from "@/hooks/useAuth";
-import { readCards, type SavedCard } from "@/lib/payment-storage";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+// stripePromise must be at module level — never inside a component
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 // ── Shipping ─────────────────────────────────────────────────────────────────
 
@@ -22,9 +32,9 @@ type ShippingMethod = {
 };
 
 const SHIPPING_METHODS: ShippingMethod[] = [
-  { id: "standard", label: "Standard Shipping", price: 0,  eta: "5–7 business days" },
-  { id: "express",  label: "Express Shipping",  price: 15, eta: "2–3 business days" },
-  { id: "overnight",label: "Overnight Shipping",price: 35, eta: "Next business day"  },
+  { id: "standard",  label: "Standard Shipping", price: 0,  eta: "5–7 business days" },
+  { id: "express",   label: "Express Shipping",  price: 15, eta: "2–3 business days"  },
+  { id: "overnight", label: "Overnight Shipping", price: 35, eta: "Next business day"  },
 ];
 
 // ── Address ───────────────────────────────────────────────────────────────────
@@ -114,28 +124,124 @@ const S = {
   }),
 };
 
+// ── Stripe payment form (must be inside <Elements>) ───────────────────────────
+
+interface StripePaymentFormProps {
+  total:          number;
+  onSuccess:      () => void;
+  paymentError:   string | null;
+  setPaymentError: (v: string | null) => void;
+  paymentLoading:  boolean;
+  setPaymentLoading: (v: boolean) => void;
+  onBack:         () => void;
+}
+
+function StripePaymentForm({
+  total,
+  onSuccess,
+  paymentError,
+  setPaymentError,
+  paymentLoading,
+  setPaymentLoading,
+  onBack,
+}: StripePaymentFormProps) {
+  const stripe   = useStripe();
+  const elements = useElements();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setPaymentLoading(true);
+    setPaymentError(null);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {},
+      redirect: "if_required",
+    });
+
+    if (error) {
+      const msg =
+        error.type === "card_error" || error.type === "validation_error"
+          ? (error.message ?? "Card declined.")
+          : "Payment failed. Please try again.";
+      setPaymentError(msg);
+      setPaymentLoading(false);
+      return;
+    }
+
+    if (paymentIntent?.status === "succeeded") {
+      onSuccess();
+    } else if (paymentIntent?.status === "requires_action") {
+      setPaymentError("Additional verification required. Please try again.");
+      setPaymentLoading(false);
+    } else {
+      setPaymentError("Payment is processing. Please wait.");
+      setPaymentLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={{ marginBottom: "20px" }}>
+        <PaymentElement options={{ layout: "tabs" }} />
+      </div>
+
+      {paymentError && (
+        <p style={{ fontSize: "12px", color: "#b00000", fontFamily: "var(--font-dm-sans), sans-serif", marginBottom: "12px", lineHeight: 1.5 }}>
+          {paymentError}
+        </p>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <GoldButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          loading={paymentLoading || !stripe || !elements}
+          disabled={!stripe || !elements || paymentLoading}
+        >
+          Pay {formatPrice(total)}
+        </GoldButton>
+        <GoldButton
+          type="button"
+          variant="outline"
+          size="md"
+          className="w-full"
+          onClick={onBack}
+          disabled={paymentLoading}
+        >
+          Back
+        </GoldButton>
+      </div>
+    </form>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ShopCheckoutModal({ product, selectedSize, onConfirm, onClose }: ShopCheckoutModalProps) {
   const reduced = useReducedMotion();
   const { user } = useAuth();
 
-  const cards: SavedCard[] = user?.email ? readCards(user.email) : [];
-  const primaryCard = cards[0] ?? null;
-
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [showCardError, setShowCardError] = useState(false);
+  const [step, setStep]                     = useState<1 | 2 | 3>(1);
   const [shippingMethodId, setShippingMethodId] = useState<ShippingMethodId>("standard");
-  const [address, setAddress] = useState<ShippingAddress>(EMPTY_ADDRESS);
-  const [errors, setErrors] = useState<Partial<Record<keyof ShippingAddress, string>>>({});
+  const [address, setAddress]               = useState<ShippingAddress>(EMPTY_ADDRESS);
+  const [errors, setErrors]                 = useState<Partial<Record<keyof ShippingAddress, string>>>({});
+  const [clientSecret, setClientSecret]     = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError]     = useState<string | null>(null);
+  const [intentError, setIntentError]       = useState<string | null>(null);
 
   // Generated exactly once when the user first reaches step 3
   const confirmRef = useRef<{ orderId: string; trackingNumber: string } | null>(null);
 
-  const method = SHIPPING_METHODS.find((m) => m.id === shippingMethodId) ?? SHIPPING_METHODS[0];
-  const subtotal = product.price;
+  const method    = SHIPPING_METHODS.find((m) => m.id === shippingMethodId) ?? SHIPPING_METHODS[0];
+  const subtotal  = product.price;
   const shippingCost = method.price;
-  const total = subtotal + shippingCost;
+  const total     = subtotal + shippingCost;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -143,19 +249,29 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Fetch PaymentIntent when user reaches step 3
+  useEffect(() => {
+    if (step !== 3 || clientSecret) return;
+    const amountCents = Math.round(total * 100);
+    fetch("/api/create-payment-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: amountCents }),
+    })
+      .then((r) => r.json())
+      .then((data: { clientSecret?: string; error?: string }) => {
+        if (data.clientSecret) {
+          setClientSecret(data.clientSecret);
+        } else {
+          setIntentError(data.error ?? "Failed to initialize payment. Please try again.");
+        }
+      })
+      .catch(() => setIntentError("Failed to initialize payment. Please try again."));
+  }, [step, clientSecret, total]);
+
   function updateField(field: keyof ShippingAddress, value: string) {
     setAddress((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
-  }
-
-  function handleContinue() {
-    console.log("CONTINUE CLICKED", { user: user?.email, cards });
-    if (!primaryCard) {
-      setShowCardError(true);
-      return;
-    }
-    setShowCardError(false);
-    setStep(2);
   }
 
   function validateAndContinue() {
@@ -171,7 +287,7 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
     setStep(3);
   }
 
-  function handleConfirmOrder() {
+  function handlePaymentSuccess() {
     if (!confirmRef.current) return;
     onConfirm({
       orderId:        confirmRef.current.orderId,
@@ -185,7 +301,7 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
 
   // ── Step indicator ──────────────────────────────────────────────────────────
 
-  const stepLabels = ["Order Summary", "Shipping Address", "Confirm Order"];
+  const stepLabels = ["Order Summary", "Shipping Address", "Payment"];
 
   return (
     <AnimatePresence>
@@ -253,28 +369,8 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
                 <p style={{ ...S.label, marginBottom: "20px" }}>Size {selectedSize}</p>
               )}
 
-              {/* Payment */}
-              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "20px", marginTop: selectedSize ? 0 : "20px", marginBottom: "20px" }}>
-                <p style={S.label}>Payment</p>
-                {primaryCard ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <div style={{ width: "36px", height: "24px", background: "#f0ede8", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: "8px", fontFamily: "var(--font-ibm-mono), monospace", color: "#080808" }}>
-                        {primaryCard.cardType === "visa" ? "VI" : primaryCard.cardType === "mastercard" ? "MC" : "··"}
-                      </span>
-                    </div>
-                    <span style={S.mono("14px")}>•••• {primaryCard.lastFour}</span>
-                  </div>
-                ) : (
-                  <p style={{ fontSize: "13px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#3a3a3a", lineHeight: 1.6 }}>
-                    Please add a payment card in{" "}
-                    <a href="/account" style={{ color: "#C9A84C", textDecoration: "underline" }}>My Account</a>.
-                  </p>
-                )}
-              </div>
-
               {/* Shipping method */}
-              <div style={{ marginBottom: "20px" }}>
+              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "20px", marginTop: selectedSize ? 0 : "20px", marginBottom: "20px" }}>
                 <p style={S.label}>Shipping Method</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {SHIPPING_METHODS.map((m) => (
@@ -321,20 +417,12 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <GoldButton variant="primary" size="lg" className="w-full" onClick={handleContinue} disabled={false}>
+                <GoldButton variant="primary" size="lg" className="w-full" onClick={() => setStep(2)}>
                   Continue
                 </GoldButton>
                 <GoldButton variant="outline" size="md" className="w-full" onClick={onClose}>
                   Cancel
                 </GoldButton>
-                {showCardError && (
-                  <p style={{ fontSize: "12px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#b00000", lineHeight: 1.5, marginTop: "2px" }}>
-                    Please add a payment method to continue.{" "}
-                    <Link href="/account" style={{ color: "#C9A84C", textDecoration: "underline" }}>
-                      Go to My Account →
-                    </Link>
-                  </p>
-                )}
               </div>
             </>
           )}
@@ -408,15 +496,15 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
             </>
           )}
 
-          {/* ── STEP 3: Final Confirmation ── */}
+          {/* ── STEP 3: Payment ── */}
           {step === 3 && confirmRef.current && (
             <>
               <h2 style={{ fontFamily: "var(--font-cormorant), serif", fontSize: "26px", fontWeight: 300, color: "#080808", letterSpacing: "0.04em", lineHeight: 1.2, marginBottom: "24px" }}>
-                Review Order
+                Payment
               </h2>
 
-              {/* Product */}
-              <div style={{ display: "flex", gap: "16px", marginBottom: "24px" }}>
+              {/* Order summary */}
+              <div style={{ display: "flex", gap: "16px", marginBottom: "20px" }}>
                 <div style={{ position: "relative", width: "68px", height: "90px", flexShrink: 0, background: "#f0ede8", overflow: "hidden" }}>
                   <Image src={product.images[0]} alt={product.name} fill className="object-cover" sizes="68px" />
                 </div>
@@ -427,69 +515,63 @@ export default function ShopCheckoutModal({ product, selectedSize, onConfirm, on
                   {selectedSize && (
                     <p style={{ ...S.label, marginBottom: "4px" }}>Size {selectedSize}</p>
                   )}
-                  {primaryCard && (
-                    <p style={S.mono("11px")}>•••• {primaryCard.lastFour}</p>
-                  )}
+                  <p style={S.mono("12px")}>{formatPrice(total)} CAD</p>
                 </div>
               </div>
 
               {/* Shipping address */}
-              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "16px", marginBottom: "16px" }}>
-                <p style={{ ...S.label, marginBottom: "8px" }}>Shipping To</p>
-                <p style={{ fontSize: "12px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#080808", lineHeight: 1.8 }}>
-                  {address.fullName}<br />
-                  {address.line1}{address.line2 ? `, ${address.line2}` : ""}<br />
-                  {address.city}, {address.state} {address.postalCode}<br />
-                  {address.country}
+              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "14px", marginBottom: "20px" }}>
+                <p style={{ ...S.label, marginBottom: "6px" }}>Shipping To</p>
+                <p style={{ fontSize: "11px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#3a3a3a", lineHeight: 1.8 }}>
+                  {address.fullName} · {address.line1}{address.line2 ? `, ${address.line2}` : ""}, {address.city}, {address.state} {address.postalCode}
                 </p>
               </div>
 
-              {/* Shipping method */}
-              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "16px", marginBottom: "16px" }}>
-                <div style={S.row("0")}>
-                  <span style={S.rowLabel}>Shipping</span>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ fontSize: "12px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#080808" }}>{method.label}</p>
-                    <p style={{ fontSize: "10px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#8a8a8a" }}>{method.eta}</p>
+              {/* Stripe Elements or loading/error */}
+              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "20px" }}>
+                {intentError ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <p style={{ fontSize: "12px", color: "#b00000", fontFamily: "var(--font-dm-sans), sans-serif", lineHeight: 1.5 }}>
+                      {intentError}
+                    </p>
+                    <GoldButton variant="outline" size="md" className="w-full" onClick={() => setStep(2)}>
+                      Back
+                    </GoldButton>
                   </div>
-                </div>
-              </div>
-
-              {/* Pricing */}
-              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "16px", marginBottom: "16px" }}>
-                <div style={S.row("6px")}>
-                  <span style={S.rowLabel}>Subtotal</span>
-                  <span style={S.mono("12px")}>{formatPrice(subtotal)}</span>
-                </div>
-                <div style={S.row("10px")}>
-                  <span style={S.rowLabel}>Shipping</span>
-                  <span style={S.mono("12px")}>{shippingCost === 0 ? "Free" : formatPrice(shippingCost)}</span>
-                </div>
-                <div style={{ ...S.row("0"), borderTop: "1px solid #e0e0e0", paddingTop: "10px" }}>
-                  <span style={{ ...S.rowLabel, color: "#080808", fontWeight: 600 }}>Total</span>
-                  <span style={S.mono("14px")}>{formatPrice(total)}</span>
-                </div>
-              </div>
-
-              {/* Order info */}
-              <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "16px", marginBottom: "28px" }}>
-                <div style={S.row("6px")}>
-                  <span style={S.rowLabel}>Order</span>
-                  <span style={S.mono("11px")}>{confirmRef.current.orderId}</span>
-                </div>
-                <div style={S.row("0")}>
-                  <span style={S.rowLabel}>Tracking</span>
-                  <span style={S.mono("11px")}>{confirmRef.current.trackingNumber}</span>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <GoldButton variant="primary" size="lg" className="w-full" onClick={handleConfirmOrder}>
-                  Confirm Order
-                </GoldButton>
-                <GoldButton variant="outline" size="md" className="w-full" onClick={() => setStep(2)}>
-                  Back
-                </GoldButton>
+                ) : !clientSecret ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "80px" }}>
+                    <span style={{
+                      display: "inline-block", width: "18px", height: "18px",
+                      border: "1.5px solid #C9A84C", borderTopColor: "transparent",
+                      borderRadius: "50%", animation: "spin 0.8s linear infinite",
+                    }} />
+                  </div>
+                ) : (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      appearance: {
+                        theme: "stripe",
+                        variables: {
+                          colorPrimary: "#C9A84C",
+                          fontFamily: "DM Sans, sans-serif",
+                          borderRadius: "0px",
+                        },
+                      },
+                    }}
+                  >
+                    <StripePaymentForm
+                      total={total}
+                      onSuccess={handlePaymentSuccess}
+                      paymentError={paymentError}
+                      setPaymentError={setPaymentError}
+                      paymentLoading={paymentLoading}
+                      setPaymentLoading={setPaymentLoading}
+                      onBack={() => setStep(2)}
+                    />
+                  </Elements>
+                )}
               </div>
             </>
           )}
