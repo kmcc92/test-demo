@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/exclusive", label: "Exclusive" },
   { href: "/auctions", label: "Auctions" },
   { href: "/library", label: "Library" },
+  { href: "/collection", label: "Collection" },
 ];
 
 function formatEmail(email: string): string {

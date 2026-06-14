@@ -27,7 +27,26 @@
       "Bash(echo \"CSS_EXIT:$?\")",
       "Bash(echo \"MATCHES:$?\")",
       "PowerShell(Get-Process *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(vercel *)",
+      "Bash(node *)",
+      "Bash(npx vercel *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(Remove-Item \"C:\\\\Users\\\\Kevin\\\\test-demo\\\\components\\\\providers\\\\WalletProvider.tsx\" -Force)",
+      "Bash(Remove-Item \"C:\\\\Users\\\\Kevin\\\\test-demo\\\\lib\\\\wagmi.ts\" -Force)",
+      "Bash(Write-Output \"Deleted both files\")",
+      "Bash(git rm *)",
+      "Bash(npx next *)",
+      "Bash(taskkill /PID 13956 /F)",
+      "Bash(grep -o '^NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=.\\\\{0,8\\\\}' .env.local)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(command -v vercel)"
     ]
+  },
+  "enabledPlugins": {
+    "stripe@claude-plugins-official": true
   }
 }

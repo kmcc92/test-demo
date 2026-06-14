@@ -188,6 +188,25 @@ AUCTION_3: "2026-08-20T20:00:00Z",
     registry/status/purchase systems untouched — events are additive only.
   - npx tsc --noEmit passes.
 
+- [x] My Collection page — new peer route /collection
+  - app/collection/page.tsx (NEW) — client-side personal certificate
+    ownership dashboard. Fetches useOwnership().purchases, filters to
+    items with non-empty certificateId (shop items excluded), enriches
+    each with getCertificateStatus, getCertificateTimeline, and
+    getCertificateFromRegistry (registry → purchase.productName →
+    "Unknown Item" display-name fallback). Splits into activeItems vs
+    reportedItems (stolen/lost) — split only, never filters out.
+    "Clear Report" calls clearStatus() then bumps a refreshKey to force
+    re-read from storage (no optimistic UI). EVENT_LABEL_MAP defined
+    once at module scope. Auth guard shows "Sign in to view your
+    collection" + Sign In CTA (openAuth) when logged out, rather than
+    redirecting.
+  - components/layout/Navbar.tsx — added "Collection" to NAV_LINKS as a
+    peer entry after "Library".
+  - Did not modify /library, /account, /verify, certificate-status.ts,
+    certificate-registry.ts, or certificate-events.ts.
+  - npx tsc --noEmit passes.
+
 **Phase 5 — Deploy**
 - [ ] vercel deploy --prod
 - [ ] Script tested on live URL
