@@ -11,6 +11,7 @@ import {
 } from "react";
 import { AuthContext } from "@/components/providers/AuthProvider";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
+import { recordEvent } from "@/lib/certificate-events";
 
 export interface OwnershipContextValue {
   purchases: PurchaseRecord[];
@@ -43,6 +44,19 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
   // setPurchases from useState is guaranteed stable by React.
   const addOwnership = useCallback((record: PurchaseRecord) => {
     setPurchases((prev) => [record, ...prev]);
+
+    if (record.certificateId) {
+      try {
+        recordEvent({
+          certificateId: record.certificateId,
+          eventType: "purchased",
+          actorType: "system",
+          metadata: { price: String(record.price) },
+        });
+      } catch {
+        // Event recording is a side effect only — ownership state above is unaffected.
+      }
+    }
   }, []);
 
   const removeOwnership = useCallback((_ownerEmail: string, productId: string) => {

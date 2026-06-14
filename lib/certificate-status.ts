@@ -6,6 +6,8 @@
 // found or how it is authenticated. All reads/writes are runtime-only and
 // fail silently on the server, returning the "active" default.
 
+import { recordEvent } from "@/lib/certificate-events";
+
 export type CertificateStatus = "active" | "stolen" | "lost";
 
 export interface CertificateStatusRecord {
@@ -115,6 +117,21 @@ export function reportStolen(
     reportedLocation: details?.location,
     note: details?.note,
   });
+
+  try {
+    recordEvent({
+      certificateId,
+      eventType: "reported_stolen",
+      actorType: "owner",
+      metadata: {
+        location: details?.location,
+        reportedDate: details?.dateStolen,
+        note: details?.note,
+      },
+    });
+  } catch {
+    // Event recording is a side effect only — status write above is unaffected.
+  }
 }
 
 export function reportLost(
@@ -126,8 +143,34 @@ export function reportLost(
     reportedLocation: details?.location,
     note: details?.note,
   });
+
+  try {
+    recordEvent({
+      certificateId,
+      eventType: "reported_lost",
+      actorType: "owner",
+      metadata: {
+        location: details?.location,
+        reportedDate: details?.dateLost,
+        note: details?.note,
+      },
+    });
+  } catch {
+    // Event recording is a side effect only — status write above is unaffected.
+  }
 }
 
 export function clearStatus(certificateId: string): void {
   setCertificateStatus(certificateId, "active");
+
+  try {
+    recordEvent({
+      certificateId,
+      eventType: "recovered",
+      actorType: "owner",
+      metadata: {},
+    });
+  } catch {
+    // Event recording is a side effect only — status write above is unaffected.
+  }
 }

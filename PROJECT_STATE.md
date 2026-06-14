@@ -165,6 +165,29 @@ AUCTION_3: "2026-08-20T20:00:00Z",
     (stolen/lost banner) still applies on top, unchanged.
   - npx tsc --noEmit passes.
 
+- [x] Certificate Event Layer — Phase 1
+  - lib/certificate-events.ts (NEW) — append-only historical ledger, same storage
+    pattern as certificate-status.ts (localStorage, test_certificate_events_v1,
+    SSR-safe, falsy-certificateId guard on writes). Exports recordEvent (auto id +
+    timestamp, no update/delete), getEventsForCertificate / getCertificateTimeline
+    (sorted timestamp ascending), getLatestEventOfType, getAllEvents. Defines all 12
+    CertificateEventType values; only 5 are wired up this phase (see below) —
+    refurbish_requested/replace_requested/refurbished/replaced/listed/delisted/
+    transferred remain unwired by design.
+  - 5 recordEvent() side effects added (each wrapped in try/catch so existing
+    behavior is unaffected if recording fails):
+    1. lib/certificate-registry.ts registerCertificate() → "created" (merchant)
+    2. components/providers/OwnershipProvider.tsx addOwnership() → "purchased"
+       (system) — this is the canonical purchase-write point (no AuthProvider
+       purchase write exists; addOwnership is the checkout-success handler per
+       STATE OWNERSHIP RULES)
+    3. lib/certificate-status.ts reportStolen() → "reported_stolen" (owner)
+    4. lib/certificate-status.ts reportLost() → "reported_lost" (owner)
+    5. lib/certificate-status.ts clearStatus() → "recovered" (owner)
+  - No existing function signatures changed; current-state reads/writes in
+    registry/status/purchase systems untouched — events are additive only.
+  - npx tsc --noEmit passes.
+
 **Phase 5 — Deploy**
 - [ ] vercel deploy --prod
 - [ ] Script tested on live URL

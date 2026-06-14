@@ -9,6 +9,8 @@
 // readStore/writeStore with try/catch, normalized (uppercase) certificateId
 // keys, SSR-safe isBrowser() guard, falsy-certificateId early returns.
 
+import { recordEvent } from "@/lib/certificate-events";
+
 export interface RegisteredCertificate {
   certificateId: string;
   productName: string;
@@ -81,6 +83,17 @@ export function registerCertificate(params: {
     registeredAt: params.registeredAt ?? new Date().toISOString(),
   });
   writeStore(store);
+
+  try {
+    recordEvent({
+      certificateId: normalized,
+      eventType: "created",
+      actorType: "merchant",
+      metadata: { productName: params.productName },
+    });
+  } catch {
+    // Event recording is a side effect only — registry write above is unaffected.
+  }
 }
 
 // Pure read — returns the registered identity or null. Never writes to storage.
