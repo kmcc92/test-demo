@@ -3,6 +3,15 @@
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnership } from "@/hooks/useOwnership";
 import { formatPrice, getProductImage } from "@/lib/utils";
@@ -13,6 +22,7 @@ import {
 } from "@/lib/certificate-status";
 import {
   getCertificateTimeline,
+  recordEvent,
   type CertificateEvent,
   type CertificateEventType,
 } from "@/lib/certificate-events";
@@ -20,9 +30,20 @@ import {
   getCertificateFromRegistry,
   type RegisteredCertificate,
 } from "@/lib/certificate-registry";
+import {
+  createServiceRequest,
+  getActiveServiceRequest,
+  updateServiceRequest,
+  type ServiceRequest,
+} from "@/lib/service-requests";
 import GoldButton from "@/components/ui/GoldButton";
 import AuthBadge from "@/components/ui/AuthBadge";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
+
+// stripePromise must be at module level — never inside a component
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 const EVENT_LABEL_MAP: Record<CertificateEventType, string> = {
   created: "Authenticated",
@@ -39,12 +60,63 @@ const EVENT_LABEL_MAP: Record<CertificateEventType, string> = {
   delisted: "Removed from Auction",
 };
 
+const S = {
+  eyebrow: {
+    fontSize: "10px",
+    letterSpacing: "0.4em",
+    textTransform: "uppercase" as const,
+    fontFamily: "var(--font-dm-sans), sans-serif",
+    color: "#080808",
+    marginBottom: "8px",
+  },
+  heading: {
+    fontFamily: "var(--font-cormorant), serif",
+    fontSize: "26px",
+    fontWeight: 300,
+    color: "#080808",
+    lineHeight: 1.2,
+    marginBottom: "24px",
+  },
+  label: {
+    fontSize: "9px",
+    letterSpacing: "0.3em",
+    textTransform: "uppercase" as const,
+    fontFamily: "var(--font-dm-sans), sans-serif",
+    color: "#8a8a8a",
+    display: "block" as const,
+    marginBottom: "8px",
+  },
+  textarea: {
+    width: "100%",
+    padding: "12px",
+    fontSize: "13px",
+    fontFamily: "var(--font-dm-sans), sans-serif",
+    color: "#080808",
+    background: "#ffffff",
+    border: "1px solid #e0e0e0",
+    outline: "none",
+    resize: "vertical" as const,
+    boxSizing: "border-box" as const,
+    lineHeight: 1.6,
+  },
+  error: {
+    fontSize: "10px",
+    color: "#b00000",
+    fontFamily: "var(--font-dm-sans), sans-serif",
+    marginTop: "4px",
+  } as React.CSSProperties,
+  mono: (size = "13px"): React.CSSProperties => ({
+    fontFamily: "var(--font-ibm-mono), monospace", fontSize: size, color: "#080808",
+  }),
+};
+
 interface CollectionItem {
   purchase: PurchaseRecord;
   displayName: string;
   status: CertificateStatus;
   timeline: CertificateEvent[];
   registryEntry: RegisteredCertificate | null;
+  activeRequest: ServiceRequest | null;
   image: string;
 }
 
@@ -82,17 +154,91 @@ function Timeline({ events }: { events: CertificateEvent[] }) {
   );
 }
 
+// ── Service request quote banner ──────────────────────────────────────────
+
+function QuoteBanner({
+  request,
+  onAcceptPay,
+  onDecline,
+}: {
+  request: ServiceRequest;
+  onAcceptPay: () => void;
+  onDecline: () => void;
+}) {
+  return (
+    <div className="mt-4 border border-[var(--border-gold)] bg-[var(--gold)]/5 px-4 py-4">
+      <p className="text-[9px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--gold-dark)] mb-2">
+        Quote Received
+      </p>
+      {request.merchantDecision && (
+        <p className="text-xs font-[family-name:var(--font-dm-sans)] text-[var(--text-primary)] mb-1 capitalize">
+          Merchant decision: {request.merchantDecision}
+        </p>
+      )}
+      <p className="font-[family-name:var(--font-ibm-mono)] text-sm text-[var(--text-primary)] mb-2">
+        {formatPrice((request.quotedPrice ?? 0) / 100)}
+      </p>
+      {request.merchantNote && (
+        <p className="text-xs font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3 leading-relaxed">
+          {request.merchantNote}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-3 mt-2">
+        <GoldButton variant="primary" size="sm" onClick={onAcceptPay}>
+          Accept &amp; Pay
+        </GoldButton>
+        <GoldButton variant="outline" size="sm" onClick={onDecline}>
+          Decline
+        </GoldButton>
+      </div>
+    </div>
+  );
+}
+
+// ── Item card ────────────────────────────────────────────────────────────
+
 function CollectionCard({
   item,
   fullTimeline,
   onClearReport,
+  onRequestService,
+  onAcceptPay,
+  onDeclineQuote,
 }: {
   item: CollectionItem;
   fullTimeline: boolean;
   onClearReport: (certificateId: string) => void;
+  onRequestService: (item: CollectionItem) => void;
+  onAcceptPay: (item: CollectionItem) => void;
+  onDeclineQuote: (item: CollectionItem) => void;
 }) {
-  const { purchase, displayName, status, timeline, image } = item;
+  const { purchase, displayName, status, timeline, image, activeRequest } = item;
   const visibleTimeline = fullTimeline ? timeline : timeline.slice(-5);
+
+  let serviceButtonLabel = "Refurbish / Replace";
+  let serviceButtonDisabled = false;
+  let serviceButtonTooltip: string | undefined;
+
+  if (status !== "active") {
+    serviceButtonDisabled = true;
+    serviceButtonTooltip = "Cannot request service on a reported item";
+  } else if (activeRequest?.status === "pending") {
+    serviceButtonLabel = "Request Pending";
+    serviceButtonDisabled = true;
+    serviceButtonTooltip = "Awaiting merchant quote";
+  } else if (activeRequest?.status === "quoted") {
+    serviceButtonLabel = "Quote Received";
+    serviceButtonDisabled = true;
+    serviceButtonTooltip = "You have a quote waiting — see below";
+  } else if (activeRequest?.status === "paid") {
+    serviceButtonLabel = "Service In Progress";
+    serviceButtonDisabled = true;
+    serviceButtonTooltip = "Your item is being serviced";
+  } else if (activeRequest) {
+    serviceButtonLabel = "Request In Progress";
+    serviceButtonDisabled = true;
+    serviceButtonTooltip = "You have a service request in progress";
+  }
 
   return (
     <div className="border border-[var(--border)] bg-[var(--bg-primary)] flex flex-col">
@@ -136,12 +282,21 @@ function CollectionCard({
           <GoldButton
             variant="ghost"
             size="sm"
-            disabled
-            title="Available soon in your collection dashboard"
+            disabled={serviceButtonDisabled}
+            title={serviceButtonTooltip}
+            onClick={() => onRequestService(item)}
           >
-            Refurbish / Replace
+            {serviceButtonLabel}
           </GoldButton>
         </div>
+
+        {activeRequest?.status === "quoted" && (
+          <QuoteBanner
+            request={activeRequest}
+            onAcceptPay={() => onAcceptPay(item)}
+            onDecline={() => onDeclineQuote(item)}
+          />
+        )}
 
         {status !== "active" && (
           <button
@@ -158,11 +313,395 @@ function CollectionCard({
   );
 }
 
+// ── Request service modal ───────────────────────────────────────────────
+
+function RequestServiceModal({
+  requestType,
+  setRequestType,
+  description,
+  setDescription,
+  requestError,
+  submitting,
+  onSubmit,
+  onClose,
+}: {
+  requestType: "refurbish" | "replace";
+  setRequestType: (v: "refurbish" | "replace") => void;
+  description: string;
+  setDescription: (v: string) => void;
+  requestError: string | null;
+  submitting: boolean;
+  onSubmit: () => void;
+  onClose: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  if (!mounted) return null;
+
+  const modal = (
+    <AnimatePresence>
+      <motion.div
+        key="request-service-backdrop"
+        initial={reduced ? {} : { opacity: 0 }}
+        animate={reduced ? {} : { opacity: 1 }}
+        exit={reduced ? {} : { opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 80,
+          background: "rgba(0,0,0,0.6)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "24px",
+        }}
+      >
+        <motion.div
+          key="request-service-panel"
+          initial={reduced ? {} : { opacity: 0, y: 16 }}
+          animate={reduced ? {} : { opacity: 1, y: 0 }}
+          exit={reduced ? {} : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e0e0e0",
+            width: "100%",
+            maxWidth: "440px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            padding: "40px",
+          }}
+        >
+          <p style={S.eyebrow}>Service Request</p>
+          <h2 style={S.heading}>Request Service</h2>
+
+          <div style={{ marginBottom: "20px" }}>
+            <label style={S.label}>Request Type</label>
+            <div style={{ display: "flex", gap: "16px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#080808", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="requestType"
+                  value="refurbish"
+                  checked={requestType === "refurbish"}
+                  onChange={() => setRequestType("refurbish")}
+                />
+                Refurbish
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#080808", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="requestType"
+                  value="replace"
+                  checked={requestType === "replace"}
+                  onChange={() => setRequestType("replace")}
+                />
+                Replace
+              </label>
+            </div>
+            <p style={{ marginTop: "8px", fontSize: "11px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#8a8a8a", lineHeight: 1.6 }}>
+              The merchant will make the final decision based on their assessment
+            </p>
+          </div>
+
+          <div style={{ marginBottom: "20px" }}>
+            <label style={S.label}>Describe the damage</label>
+            <textarea
+              value={description}
+              rows={4}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the damage or reason for replacement in detail..."
+              style={S.textarea}
+            />
+          </div>
+
+          {requestError && <p style={S.error}>{requestError}</p>}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+            <GoldButton
+              variant="primary"
+              size="lg"
+              className="w-full"
+              loading={submitting}
+              disabled={submitting || description.length < 20}
+              onClick={onSubmit}
+            >
+              Submit Request
+            </GoldButton>
+            <GoldButton variant="outline" size="md" className="w-full" onClick={onClose} disabled={submitting}>
+              Cancel
+            </GoldButton>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  return createPortal(modal, document.body);
+}
+
+// ── Quote payment modal (reuses ShopCheckoutModal's Stripe pattern) ──────
+
+interface QuotePaymentFormProps {
+  total: number;
+  onSuccess: (paymentIntentId: string) => void;
+  paymentError: string | null;
+  setPaymentError: (v: string | null) => void;
+  paymentLoading: boolean;
+  setPaymentLoading: (v: boolean) => void;
+  onCancel: () => void;
+}
+
+function QuotePaymentForm({
+  total,
+  onSuccess,
+  paymentError,
+  setPaymentError,
+  paymentLoading,
+  setPaymentLoading,
+  onCancel,
+}: QuotePaymentFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setPaymentLoading(true);
+    setPaymentError(null);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {},
+      redirect: "if_required",
+    });
+
+    if (error) {
+      const msg =
+        error.type === "card_error" || error.type === "validation_error"
+          ? (error.message ?? "Card declined.")
+          : "Payment failed. Please try again.";
+      setPaymentError(msg);
+      setPaymentLoading(false);
+      return;
+    }
+
+    if (paymentIntent?.status === "succeeded") {
+      onSuccess(paymentIntent.id);
+    } else if (paymentIntent?.status === "requires_action") {
+      setPaymentError("Additional verification required. Please try again.");
+      setPaymentLoading(false);
+    } else {
+      setPaymentError("Payment is processing. Please wait.");
+      setPaymentLoading(false);
+    }
+  }
+
+  if (!stripe || !elements) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "80px" }}>
+        <span style={{
+          display: "inline-block", width: "18px", height: "18px",
+          border: "1.5px solid #C9A84C", borderTopColor: "transparent",
+          borderRadius: "50%", animation: "spin 0.8s linear infinite",
+        }} />
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div style={{ marginBottom: "20px" }}>
+        <PaymentElement options={{ layout: "tabs" }} />
+      </div>
+
+      {paymentError && <p style={S.error}>{paymentError}</p>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "12px" }}>
+        <GoldButton
+          type="submit"
+          variant="primary"
+          size="lg"
+          className="w-full"
+          loading={paymentLoading}
+          disabled={paymentLoading}
+        >
+          Pay {formatPrice(total)}
+        </GoldButton>
+        <GoldButton type="button" variant="outline" size="md" className="w-full" onClick={onCancel} disabled={paymentLoading}>
+          Cancel
+        </GoldButton>
+      </div>
+    </form>
+  );
+}
+
+function QuotePaymentModal({
+  request,
+  itemName,
+  onSuccess,
+  onClose,
+}: {
+  request: ServiceRequest;
+  itemName: string;
+  onSuccess: (paymentIntentId: string) => void;
+  onClose: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [intentError, setIntentError] = useState<string | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (clientSecret) return;
+    const amountCents = request.quotedPrice ?? 0;
+    fetch("/api/create-payment-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: amountCents }),
+    })
+      .then((r) => r.json())
+      .then((data: { clientSecret?: string; error?: string }) => {
+        if (data.clientSecret) {
+          setClientSecret(data.clientSecret);
+        } else {
+          setIntentError(data.error ?? "Failed to initialize payment. Please try again.");
+        }
+      })
+      .catch(() => setIntentError("Failed to initialize payment. Please try again."));
+  }, [clientSecret, request.quotedPrice]);
+
+  if (!mounted) return null;
+
+  const total = (request.quotedPrice ?? 0) / 100;
+
+  const modal = (
+    <AnimatePresence>
+      <motion.div
+        key="quote-payment-backdrop"
+        initial={reduced ? {} : { opacity: 0 }}
+        animate={reduced ? {} : { opacity: 1 }}
+        exit={reduced ? {} : { opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 80,
+          background: "rgba(0,0,0,0.6)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "24px",
+        }}
+      >
+        <motion.div
+          key="quote-payment-panel"
+          initial={reduced ? {} : { opacity: 0, y: 16 }}
+          animate={reduced ? {} : { opacity: 1, y: 0 }}
+          exit={reduced ? {} : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e0e0e0",
+            width: "100%",
+            maxWidth: "440px",
+            maxHeight: "90vh",
+            overflowY: "auto",
+            padding: "40px",
+          }}
+        >
+          <p style={S.eyebrow}>Service Quote</p>
+          <h2 style={S.heading}>{itemName}</h2>
+          <p style={{ ...S.mono("16px"), marginBottom: "20px" }}>{formatPrice(total)}</p>
+
+          <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "20px" }}>
+            {intentError ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <p style={S.error}>{intentError}</p>
+                <GoldButton variant="outline" size="md" className="w-full" onClick={onClose}>
+                  Close
+                </GoldButton>
+              </div>
+            ) : !clientSecret ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "80px" }}>
+                <span style={{
+                  display: "inline-block", width: "18px", height: "18px",
+                  border: "1.5px solid #C9A84C", borderTopColor: "transparent",
+                  borderRadius: "50%", animation: "spin 0.8s linear infinite",
+                }} />
+              </div>
+            ) : (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret,
+                  appearance: {
+                    theme: "stripe",
+                    variables: {
+                      colorPrimary: "#C9A84C",
+                      fontFamily: "DM Sans, sans-serif",
+                      borderRadius: "0px",
+                    },
+                  },
+                }}
+              >
+                <QuotePaymentForm
+                  total={total}
+                  onSuccess={onSuccess}
+                  paymentError={paymentError}
+                  setPaymentError={setPaymentError}
+                  paymentLoading={paymentLoading}
+                  setPaymentLoading={setPaymentLoading}
+                  onCancel={onClose}
+                />
+              </Elements>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  return createPortal(modal, document.body);
+}
+
+// ── Page ───────────────────────────────────────────────────────────────
+
 export default function CollectionPage() {
   const { user, isLoaded, openAuth } = useAuth();
   const { purchases } = useOwnership();
   const [mounted, setMounted] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [activeItemCertId, setActiveItemCertId] = useState<string | null>(null);
+  const [requestType, setRequestType] = useState<"refurbish" | "replace">("refurbish");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+
+  const [payingItem, setPayingItem] = useState<CollectionItem | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -190,6 +729,7 @@ export default function CollectionPage() {
           status: getCertificateStatus(purchase.certificateId),
           timeline: getCertificateTimeline(purchase.certificateId),
           registryEntry,
+          activeRequest: getActiveServiceRequest(purchase.certificateId),
           image: getProductImage(purchase.productId),
         };
       }),
@@ -203,6 +743,90 @@ export default function CollectionPage() {
 
   function handleClearReport(certificateId: string) {
     clearStatus(certificateId);
+    setRefreshKey((k) => k + 1);
+  }
+
+  function handleRequestService(item: CollectionItem) {
+    setActiveItemCertId(item.purchase.certificateId);
+    setRequestType("refurbish");
+    setDescription("");
+    setRequestError(null);
+    setRequestModalOpen(true);
+  }
+
+  function handleCloseRequestModal() {
+    setRequestModalOpen(false);
+    setActiveItemCertId(null);
+    setRequestError(null);
+  }
+
+  function handleSubmitRequest() {
+    if (!activeItemCertId) return;
+
+    setSubmitting(true);
+    setRequestError(null);
+
+    // Explicit UI-level pre-check (belt and suspenders)
+    const existing = getActiveServiceRequest(activeItemCertId);
+    if (existing) {
+      setRequestError("A service request already exists for this item.");
+      setSubmitting(false);
+      return;
+    }
+
+    const item = items.find((i) => i.purchase.certificateId === activeItemCertId);
+    const resolvedProductName = item?.displayName ?? "Unknown Item";
+
+    const result = createServiceRequest({
+      certificateId: activeItemCertId,
+      productName: resolvedProductName,
+      requestType,
+      customerDescription: description,
+    });
+
+    // Robust stub detection (handles null, undefined, empty id)
+    if (!result || !result.id) {
+      setRequestError("Failed to create service request. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    // Only record event AFTER confirmed successful request creation
+    recordEvent({
+      certificateId: activeItemCertId,
+      eventType: requestType === "refurbish" ? "refurbish_requested" : "replace_requested",
+      actorType: "owner",
+      metadata: { description },
+    });
+
+    setRequestModalOpen(false);
+    setActiveItemCertId(null);
+    setDescription("");
+    setSubmitting(false);
+    setRefreshKey((k) => k + 1);
+  }
+
+  function handleAcceptPay(item: CollectionItem) {
+    setPayingItem(item);
+  }
+
+  function handleDeclineQuote(item: CollectionItem) {
+    if (!item.activeRequest) return;
+    updateServiceRequest(item.activeRequest.id, {
+      status: "denied",
+      customerResponseAt: new Date().toISOString(),
+    });
+    setRefreshKey((k) => k + 1);
+  }
+
+  function handlePaymentSuccess(paymentIntentId: string) {
+    if (!payingItem?.activeRequest) return;
+    updateServiceRequest(payingItem.activeRequest.id, {
+      status: "paid",
+      stripePaymentIntentId: paymentIntentId,
+      paidAt: new Date().toISOString(),
+    });
+    setPayingItem(null);
     setRefreshKey((k) => k + 1);
   }
 
@@ -262,6 +886,9 @@ export default function CollectionPage() {
                 item={item}
                 fullTimeline={false}
                 onClearReport={handleClearReport}
+                onRequestService={handleRequestService}
+                onAcceptPay={handleAcceptPay}
+                onDeclineQuote={handleDeclineQuote}
               />
             ))}
           </div>
@@ -278,12 +905,37 @@ export default function CollectionPage() {
                     item={item}
                     fullTimeline={true}
                     onClearReport={handleClearReport}
+                    onRequestService={handleRequestService}
+                    onAcceptPay={handleAcceptPay}
+                    onDeclineQuote={handleDeclineQuote}
                   />
                 ))}
               </div>
             </div>
           )}
         </>
+      )}
+
+      {requestModalOpen && activeItemCertId && (
+        <RequestServiceModal
+          requestType={requestType}
+          setRequestType={setRequestType}
+          description={description}
+          setDescription={setDescription}
+          requestError={requestError}
+          submitting={submitting}
+          onSubmit={handleSubmitRequest}
+          onClose={handleCloseRequestModal}
+        />
+      )}
+
+      {payingItem?.activeRequest && (
+        <QuotePaymentModal
+          request={payingItem.activeRequest}
+          itemName={payingItem.displayName}
+          onSuccess={handlePaymentSuccess}
+          onClose={() => setPayingItem(null)}
+        />
       )}
     </div>
   );
