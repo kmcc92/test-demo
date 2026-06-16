@@ -687,7 +687,7 @@ export default function VerifyPage() {
   const searchParams = useSearchParams();
   const idParam = searchParams.get("certificateId") ?? searchParams.get("id");
   const { address: walletAddress } = useWallet();
-  const { purchases } = useOwnership();
+  const { getResolvedPurchases } = useOwnership();
   const { user } = useAuth();
 
   const [inputValue, setInputValue] = useState("");
@@ -736,7 +736,7 @@ export default function VerifyPage() {
     setIsVerifying(true);
     setResult(null);
 
-    const cert = await lookupCertificate(query, purchases, user?.email ?? undefined);
+    const cert = await lookupCertificate(query, getResolvedPurchases(user?.email ?? ""), user?.email ?? undefined);
     setResult(cert);
     setIsVerifying(false);
   }
