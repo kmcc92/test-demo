@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import { AuthContext } from "@/components/providers/AuthProvider";
-import type { PurchaseRecord } from "@/lib/purchase-storage";
+import {
+  readPurchases,
+  addPurchase,
+  writePurchases,
+  type PurchaseRecord,
+} from "@/lib/purchase-storage";
 import { recordEvent } from "@/lib/certificate-events";
 
 export interface OwnershipContextValue {
@@ -29,41 +34,50 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
   const { user, setPurchaseHandler } = auth;
   const userEmail = user?.email ?? null;
 
-  // Session-only: purchases live exclusively in React state.
-  // No hydration from localStorage. No writes to localStorage.
   const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
 
-  // Clear all purchases on logout. On login, state is already [] — clean slate.
+  // Hydrate from localStorage on login; clear React state on logout (storage survives).
   useEffect(() => {
-    if (!userEmail) {
+    if (userEmail) {
+      setPurchases(readPurchases(userEmail));
+    } else {
       setPurchases([]);
     }
   }, [userEmail]);
 
-  // Stable callback — no userEmail dependency since we no longer persist.
-  // setPurchases from useState is guaranteed stable by React.
-  const addOwnership = useCallback((record: PurchaseRecord) => {
-    setPurchases((prev) => [record, ...prev]);
+  const addOwnership = useCallback(
+    (record: PurchaseRecord) => {
+      setPurchases((prev) => [record, ...prev]);
 
-    if (record.certificateId) {
-      try {
-        recordEvent({
-          certificateId: record.certificateId,
-          eventType: "purchased",
-          actorType: "system",
-          metadata: { price: String(record.price) },
-        });
-      } catch {
-        // Event recording is a side effect only — ownership state above is unaffected.
+      if (userEmail) {
+        addPurchase(userEmail, record);
       }
+
+      if (record.certificateId) {
+        try {
+          recordEvent({
+            certificateId: record.certificateId,
+            eventType: "purchased",
+            actorType: "system",
+            metadata: { price: String(record.price) },
+          });
+        } catch {
+          // Event recording is a side effect only — ownership state above is unaffected.
+        }
+      }
+    },
+    [userEmail]
+  );
+
+  const removeOwnership = useCallback((ownerEmail: string, productId: string) => {
+    setPurchases((prev) => prev.filter((p) => p.productId !== productId));
+    if (ownerEmail) {
+      const updated = readPurchases(ownerEmail).filter((p) => p.productId !== productId);
+      writePurchases(ownerEmail, updated);
     }
   }, []);
 
-  const removeOwnership = useCallback((_ownerEmail: string, productId: string) => {
-    setPurchases((prev) => prev.filter((p) => p.productId !== productId));
-  }, []);
-
-  // Register once with AuthProvider. Stable addOwnership means this only runs once.
+  // Re-registers whenever addOwnership changes (i.e., on login/logout when userEmail changes).
   useEffect(() => {
     setPurchaseHandler(addOwnership);
     return () => {
