@@ -6,6 +6,7 @@ import Image from "next/image";
 import { PRODUCTS, type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
 import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
 import { getCertificateStatus } from "@/lib/certificate-status";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
@@ -595,6 +596,11 @@ export default function LibraryContent({
   // items on first paint is expected and acceptable.
   const [mounted, setMounted] = useState(false);
 
+  const certificateStatusVersion = useDomainSubscription(
+    "certificate-status-changed",
+    () => Date.now()
+  );
+
   useEffect(() => {
     setMerchantProducts(getMerchantProductsByType("exclusive"));
     setMounted(true);
@@ -669,7 +675,7 @@ export default function LibraryContent({
         return status !== "stolen" && status !== "lost";
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displayEntries, mounted]
+    [displayEntries, mounted, certificateStatusVersion]
   );
 
   // Derive ownership map from eligible purchases only.
