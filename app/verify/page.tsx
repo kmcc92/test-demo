@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useCallback, useId } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { type CertificateResult } from "@/lib/mock-verify";
@@ -21,6 +21,33 @@ import {
   getCertificateDisplayContext,
   type CertificateDisplayContext,
 } from "@/lib/certificate-display-adapter";
+import {
+  getCertificateTimeline,
+  type CertificateEvent,
+} from "@/lib/certificate-events";
+
+const EVENT_LABEL_MAP: Record<string, string> = {
+  created: "Authenticated",
+  purchased: "Purchased",
+  transferred: "Transferred",
+  reported_stolen: "Stolen Reported",
+  reported_lost: "Lost Reported",
+  recovered: "Recovered",
+  refurbish_requested: "Refurbish Requested",
+  replace_requested: "Replace Requested",
+  refurbished: "Refurbished",
+  replaced: "Replaced",
+  listed: "Listed for Auction",
+  delisted: "Removed from Auction",
+};
+
+function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
+  let timer: ReturnType<typeof setTimeout>;
+  return ((...args: unknown[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  }) as T;
+}
 
 function GoldCheckmark({ reduced }: { reduced: boolean | null }) {
   return (
@@ -342,7 +369,7 @@ function ResultCard({
           className="space-y-3 mb-8 border border-[var(--border)] p-5"
         >
           <div className="flex justify-between items-center">
-            <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
+            <span className="text-[10px] tracking-widests uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
               Certificate
             </span>
             <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--gold)]">
@@ -697,8 +724,11 @@ export default function VerifyPage() {
     certificate: null,
     hasCertificate: false,
   });
+  const [timeline, setTimeline] = useState<CertificateEvent[]>([]);
+  const [timelineKey, setTimelineKey] = useState(0);
 
   const blockchainData = result ? getBlockchainData(result.certificateId) : null;
+  const certificateId = result?.certificateId ?? null;
 
   const effectiveOwner =
     result?.certificateId === "TEST-GOLD-001" && walletAddress
@@ -710,6 +740,34 @@ export default function VerifyPage() {
     effectiveOwner &&
     walletAddress.toLowerCase() === effectiveOwner.toLowerCase()
   );
+
+  const refreshTimeline = useCallback(
+    debounce(() => setTimelineKey((k) => k + 1), 50),
+    []
+  );
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "test_certificate_events_v1") refreshTimeline();
+    };
+    const handleDomainEvent = () => refreshTimeline();
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("certificate-events-updated", handleDomainEvent);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("certificate-events-updated", handleDomainEvent);
+    };
+  }, [refreshTimeline]);
+
+  useEffect(() => {
+    if (!certificateId) {
+      setTimeline([]);
+      return;
+    }
+    setTimeline(getCertificateTimeline(certificateId));
+  }, [certificateId, timelineKey]);
 
   // Certificate metadata lookup — client-side only, after result is available.
   // Derives productId from verificationResult only; never reads storage during SSR.
@@ -842,6 +900,37 @@ export default function VerifyPage() {
       {/* Certificate metadata — decorative display only, always below result */}
       {result && (
         <CertificateMetadataCard ctx={certContext} reduced={reduced} />
+      )}
+
+      {/* Certificate History — reactive via domain event listener */}
+      {certificateId && timeline.length > 0 && (
+        <motion.div
+          initial={reduced ? {} : { opacity: 0 }}
+          animate={reduced ? {} : { opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="w-full max-w-lg mx-auto mt-4"
+        >
+          <div className="border border-[var(--border)] p-6">
+            <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-4">
+              Certificate History
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {timeline.map((event) => (
+                <p
+                  key={event.id}
+                  className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-[var(--text-muted)]"
+                >
+                  {EVENT_LABEL_MAP[event.eventType] ?? event.eventType} ·{" "}
+                  {new Date(event.timestamp).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "2-digit",
+                    year: "numeric",
+                  })}
+                </p>
+              ))}
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* Reset */}
