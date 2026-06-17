@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { type CertificateResult } from "@/lib/mock-verify";
@@ -21,10 +21,8 @@ import {
   getCertificateDisplayContext,
   type CertificateDisplayContext,
 } from "@/lib/certificate-display-adapter";
-import {
-  getCertificateTimeline,
-  type CertificateEvent,
-} from "@/lib/certificate-events";
+import { getCertificateTimeline } from "@/lib/certificate-events";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 
 const EVENT_LABEL_MAP: Record<string, string> = {
   created: "Authenticated",
@@ -40,14 +38,6 @@ const EVENT_LABEL_MAP: Record<string, string> = {
   listed: "Listed for Auction",
   delisted: "Removed from Auction",
 };
-
-function debounce<T extends (...args: unknown[]) => void>(fn: T, ms: number): T {
-  let timer: ReturnType<typeof setTimeout>;
-  return ((...args: unknown[]) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  }) as T;
-}
 
 function GoldCheckmark({ reduced }: { reduced: boolean | null }) {
   return (
@@ -724,11 +714,13 @@ export default function VerifyPage() {
     certificate: null,
     hasCertificate: false,
   });
-  const [timeline, setTimeline] = useState<CertificateEvent[]>([]);
-  const [timelineKey, setTimelineKey] = useState(0);
-
   const blockchainData = result ? getBlockchainData(result.certificateId) : null;
   const certificateId = result?.certificateId ?? null;
+
+  const timeline = useDomainSubscription(
+    "certificate-events-changed",
+    () => (certificateId ? getCertificateTimeline(certificateId) : [])
+  );
 
   const effectiveOwner =
     result?.certificateId === "TEST-GOLD-001" && walletAddress
@@ -740,34 +732,6 @@ export default function VerifyPage() {
     effectiveOwner &&
     walletAddress.toLowerCase() === effectiveOwner.toLowerCase()
   );
-
-  const refreshTimeline = useCallback(
-    debounce(() => setTimelineKey((k) => k + 1), 50),
-    []
-  );
-
-  useEffect(() => {
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === "test_certificate_events_v1") refreshTimeline();
-    };
-    const handleDomainEvent = () => refreshTimeline();
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("certificate-events-updated", handleDomainEvent);
-
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("certificate-events-updated", handleDomainEvent);
-    };
-  }, [refreshTimeline]);
-
-  useEffect(() => {
-    if (!certificateId) {
-      setTimeline([]);
-      return;
-    }
-    setTimeline(getCertificateTimeline(certificateId));
-  }, [certificateId, timelineKey]);
 
   // Certificate metadata lookup — client-side only, after result is available.
   // Derives productId from verificationResult only; never reads storage during SSR.

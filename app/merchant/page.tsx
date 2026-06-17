@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { getMerchantProductsByType } from "@/lib/merchant-storage";
@@ -10,17 +10,8 @@ import {
   type ServiceRequest,
 } from "@/lib/service-requests";
 import { recordEvent } from "@/lib/certificate-events";
-
-function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
-  ms: number
-): T {
-  let timer: ReturnType<typeof setTimeout>;
-  return ((...args: unknown[]) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  }) as T;
-}
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
+import { emitDomainEvent } from "@/lib/domain-events";
 
 export default function MerchantDashboard() {
   const { user, logout } = useAuth();
@@ -35,31 +26,10 @@ export default function MerchantDashboard() {
   const [quotePrice, setQuotePrice] = useState<string>("");
   const [quoteNote, setQuoteNote] = useState<string>("");
 
-  const [allRequests, setAllRequests] = useState<ServiceRequest[]>([]);
-
-  const loadRequests = useCallback(
-    debounce(() => {
-      setAllRequests(getAllServiceRequests());
-    }, 50),
-    []
+  const allRequests = useDomainSubscription(
+    "service-requests-changed",
+    getAllServiceRequests
   );
-
-  const handleStorageEvent = useCallback(
-    (e: StorageEvent) => {
-      if (e.key === "test_service_requests_v1") {
-        loadRequests();
-      }
-    },
-    [loadRequests]
-  );
-
-  useEffect(() => {
-    loadRequests();
-    window.addEventListener("storage", handleStorageEvent);
-    return () => {
-      window.removeEventListener("storage", handleStorageEvent);
-    };
-  }, [loadRequests, handleStorageEvent]);
 
   const pendingRequests = allRequests.filter((r) => r.status === "pending");
   const quotedRequests = allRequests.filter((r) => r.status === "quoted");
@@ -85,7 +55,7 @@ export default function MerchantDashboard() {
     setQuotingId(null);
     setQuotePrice("");
     setQuoteNote("");
-    loadRequests();
+    emitDomainEvent("service-requests-changed");
   }
 
   function handleMarkComplete(request: ServiceRequest) {
@@ -106,8 +76,8 @@ export default function MerchantDashboard() {
         fee: String(request.quotedPrice ?? 0),
       },
     });
-    window.dispatchEvent(new Event("certificate-events-updated"));
-    loadRequests();
+    emitDomainEvent("certificate-events-changed");
+    emitDomainEvent("service-requests-changed");
   }
 
   function formatCAD(cents: number): string {

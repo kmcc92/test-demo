@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -39,6 +39,8 @@ import {
 import GoldButton from "@/components/ui/GoldButton";
 import AuthBadge from "@/components/ui/AuthBadge";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
+import { emitDomainEvent } from "@/lib/domain-events";
 
 // stripePromise must be at module level — never inside a component
 const stripePromise = loadStripe(
@@ -59,17 +61,6 @@ const EVENT_LABEL_MAP: Record<CertificateEventType, string> = {
   listed: "Listed for Auction",
   delisted: "Removed from Auction",
 };
-
-function debounce<T extends (...args: unknown[]) => void>(
-  fn: T,
-  ms: number
-): T {
-  let timer: ReturnType<typeof setTimeout>;
-  return ((...args: unknown[]) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  }) as T;
-}
 
 const S = {
   eyebrow: {
@@ -703,7 +694,6 @@ export default function CollectionPage() {
   const { user, isLoaded, openAuth } = useAuth();
   const { purchases } = useOwnership();
   const [mounted, setMounted] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [activeItemCertId, setActiveItemCertId] = useState<string | null>(null);
@@ -714,44 +704,20 @@ export default function CollectionPage() {
 
   const [payingItem, setPayingItem] = useState<CollectionItem | null>(null);
 
-  const refreshCollection = useCallback(
-    debounce(() => {
-      setRefreshKey((k) => k + 1);
-    }, 50),
-    []
+  const certificateEventsVersion = useDomainSubscription(
+    "certificate-events-changed",
+    () => Date.now()
+  );
+  const serviceRequestsVersion = useDomainSubscription(
+    "service-requests-changed",
+    () => Date.now()
+  );
+  const certificateStatusVersion = useDomainSubscription(
+    "certificate-status-changed",
+    () => Date.now()
   );
 
   useEffect(() => setMounted(true), []);
-
-  useEffect(() => {
-    const handleStorageEvent = (e: StorageEvent) => {
-      if (
-        e.key === "test_certificate_events_v1" ||
-        e.key === "test_service_requests_v1" ||
-        e.key === "test_certificate_status_v1"
-      ) {
-        refreshCollection();
-      }
-    };
-
-    const handleCertificateEvent = () => {
-      refreshCollection();
-    };
-
-    window.addEventListener("storage", handleStorageEvent);
-    window.addEventListener(
-      "certificate-events-updated",
-      handleCertificateEvent
-    );
-
-    return () => {
-      window.removeEventListener("storage", handleStorageEvent);
-      window.removeEventListener(
-        "certificate-events-updated",
-        handleCertificateEvent
-      );
-    };
-  }, [refreshCollection]);
 
   // Authenticated pieces only — items with a non-empty certificateId. Shop
   // purchases (no certificateId) are excluded.
@@ -782,7 +748,7 @@ export default function CollectionPage() {
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authenticatedPurchases, mounted, refreshKey]
+    [authenticatedPurchases, mounted, certificateEventsVersion, serviceRequestsVersion, certificateStatusVersion]
   );
 
   const activeItems = items.filter((i) => i.status === "active");
@@ -791,7 +757,7 @@ export default function CollectionPage() {
 
   function handleClearReport(certificateId: string) {
     clearStatus(certificateId);
-    refreshCollection();
+    emitDomainEvent("certificate-status-changed");
   }
 
   function handleRequestService(item: CollectionItem) {
@@ -851,7 +817,8 @@ export default function CollectionPage() {
     setActiveItemCertId(null);
     setDescription("");
     setSubmitting(false);
-    refreshCollection();
+    emitDomainEvent("service-requests-changed");
+    emitDomainEvent("certificate-events-changed");
   }
 
   function handleAcceptPay(item: CollectionItem) {
@@ -864,7 +831,7 @@ export default function CollectionPage() {
       status: "denied",
       customerResponseAt: new Date().toISOString(),
     });
-    refreshCollection();
+    emitDomainEvent("service-requests-changed");
   }
 
   function handlePaymentSuccess(paymentIntentId: string) {
@@ -875,7 +842,7 @@ export default function CollectionPage() {
       paidAt: new Date().toISOString(),
     });
     setPayingItem(null);
-    refreshCollection();
+    emitDomainEvent("service-requests-changed");
   }
 
   if (!isLoaded) return null;
