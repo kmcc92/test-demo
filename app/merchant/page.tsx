@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { getMerchantProductsByType } from "@/lib/merchant-storage";
@@ -10,6 +10,17 @@ import {
   type ServiceRequest,
 } from "@/lib/service-requests";
 import { recordEvent } from "@/lib/certificate-events";
+
+function debounce<T extends (...args: unknown[]) => void>(
+  fn: T,
+  ms: number
+): T {
+  let timer: ReturnType<typeof setTimeout>;
+  return ((...args: unknown[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  }) as T;
+}
 
 export default function MerchantDashboard() {
   const { user, logout } = useAuth();
@@ -23,16 +34,36 @@ export default function MerchantDashboard() {
   const [quoteDecision, setQuoteDecision] = useState<"refurbish" | "replace">("refurbish");
   const [quotePrice, setQuotePrice] = useState<string>("");
   const [quoteNote, setQuoteNote] = useState<string>("");
-  const [refreshCount, forceRefresh] = useState(0);
 
-  // Re-derives on every refreshCount change
-  const allRequests = getAllServiceRequests();
+  const [allRequests, setAllRequests] = useState<ServiceRequest[]>([]);
+
+  const loadRequests = useCallback(
+    debounce(() => {
+      setAllRequests(getAllServiceRequests());
+    }, 50),
+    []
+  );
+
+  const handleStorageEvent = useCallback(
+    (e: StorageEvent) => {
+      if (e.key === "test_service_requests_v1") {
+        loadRequests();
+      }
+    },
+    [loadRequests]
+  );
+
+  useEffect(() => {
+    loadRequests();
+    window.addEventListener("storage", handleStorageEvent);
+    return () => {
+      window.removeEventListener("storage", handleStorageEvent);
+    };
+  }, [loadRequests, handleStorageEvent]);
+
   const pendingRequests = allRequests.filter((r) => r.status === "pending");
   const quotedRequests = allRequests.filter((r) => r.status === "quoted");
   const paidRequests = allRequests.filter((r) => r.status === "paid");
-
-  // Suppress unused-var warning — refreshCount is the trigger, not read directly
-  void refreshCount;
 
   function openQuoteForm(request: ServiceRequest) {
     setQuotingId(request.id);
@@ -54,7 +85,7 @@ export default function MerchantDashboard() {
     setQuotingId(null);
     setQuotePrice("");
     setQuoteNote("");
-    forceRefresh((v) => v + 1);
+    loadRequests();
   }
 
   function handleMarkComplete(request: ServiceRequest) {
@@ -75,7 +106,7 @@ export default function MerchantDashboard() {
         fee: String(request.quotedPrice ?? 0),
       },
     });
-    forceRefresh((v) => v + 1);
+    loadRequests();
   }
 
   function formatCAD(cents: number): string {
@@ -365,7 +396,7 @@ export default function MerchantDashboard() {
 
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                   <div>
-                    <p className="text-[9px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[#8a8a8a] mb-1">
+                    <p className="text-[9px] tracking-widests uppercase font-[family-name:var(--font-dm-sans)] text-[#8a8a8a] mb-1">
                       Decision
                     </p>
                     <p className="font-[family-name:var(--font-ibm-mono)] text-xs text-[#080808] capitalize">
