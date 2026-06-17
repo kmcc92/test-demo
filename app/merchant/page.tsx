@@ -106,6 +106,7 @@ export default function MerchantDashboard() {
         fee: String(request.quotedPrice ?? 0),
       },
     });
+    window.dispatchEvent(new Event("certificate-events-updated"));
     loadRequests();
   }
 

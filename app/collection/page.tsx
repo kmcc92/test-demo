@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -59,6 +59,17 @@ const EVENT_LABEL_MAP: Record<CertificateEventType, string> = {
   listed: "Listed for Auction",
   delisted: "Removed from Auction",
 };
+
+function debounce<T extends (...args: unknown[]) => void>(
+  fn: T,
+  ms: number
+): T {
+  let timer: ReturnType<typeof setTimeout>;
+  return ((...args: unknown[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  }) as T;
+}
 
 const S = {
   eyebrow: {
@@ -703,7 +714,44 @@ export default function CollectionPage() {
 
   const [payingItem, setPayingItem] = useState<CollectionItem | null>(null);
 
+  const refreshCollection = useCallback(
+    debounce(() => {
+      setRefreshKey((k) => k + 1);
+    }, 50),
+    []
+  );
+
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (
+        e.key === "test_certificate_events_v1" ||
+        e.key === "test_service_requests_v1" ||
+        e.key === "test_certificate_status_v1"
+      ) {
+        refreshCollection();
+      }
+    };
+
+    const handleCertificateEvent = () => {
+      refreshCollection();
+    };
+
+    window.addEventListener("storage", handleStorageEvent);
+    window.addEventListener(
+      "certificate-events-updated",
+      handleCertificateEvent
+    );
+
+    return () => {
+      window.removeEventListener("storage", handleStorageEvent);
+      window.removeEventListener(
+        "certificate-events-updated",
+        handleCertificateEvent
+      );
+    };
+  }, [refreshCollection]);
 
   // Authenticated pieces only — items with a non-empty certificateId. Shop
   // purchases (no certificateId) are excluded.
@@ -743,7 +791,7 @@ export default function CollectionPage() {
 
   function handleClearReport(certificateId: string) {
     clearStatus(certificateId);
-    setRefreshKey((k) => k + 1);
+    refreshCollection();
   }
 
   function handleRequestService(item: CollectionItem) {
@@ -803,7 +851,7 @@ export default function CollectionPage() {
     setActiveItemCertId(null);
     setDescription("");
     setSubmitting(false);
-    setRefreshKey((k) => k + 1);
+    refreshCollection();
   }
 
   function handleAcceptPay(item: CollectionItem) {
@@ -816,7 +864,7 @@ export default function CollectionPage() {
       status: "denied",
       customerResponseAt: new Date().toISOString(),
     });
-    setRefreshKey((k) => k + 1);
+    refreshCollection();
   }
 
   function handlePaymentSuccess(paymentIntentId: string) {
@@ -827,7 +875,7 @@ export default function CollectionPage() {
       paidAt: new Date().toISOString(),
     });
     setPayingItem(null);
-    setRefreshKey((k) => k + 1);
+    refreshCollection();
   }
 
   if (!isLoaded) return null;
