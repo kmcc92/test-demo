@@ -1,5 +1,3 @@
-import { CERTIFICATES } from "@/lib/mock-verify";
-
 export type MerchantProduct = {
   id: string;
   type: "shop" | "exclusive";
@@ -63,10 +61,15 @@ export function addMerchantProduct(product: MerchantProduct): void {
   writeStore(store);
 }
 
+// Reserved certificate IDs from the static mock catalog — copied verbatim from
+// the former CERTIFICATES map in lib/mock-verify.ts (now deprecated).
+// These IDs are blocked from re-use in merchant product creation.
+const RESERVED_CERTIFICATE_IDS = ["TEST-GOLD-001", "TEST-GOLD-002"];
+
 // certificateId is assigned once at creation time and is immutable thereafter —
 // it represents a physical NFC tag and must never be reassigned.
 function getStaticCertificateIds(): string[] {
-  return Object.keys(CERTIFICATES);
+  return RESERVED_CERTIFICATE_IDS;
 }
 
 export function isCertificateIdTaken(

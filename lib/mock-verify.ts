@@ -1,3 +1,9 @@
+// DEPRECATED: types moved to lib/types/certificate.ts
+// CERTIFICATES constant replaced by local reserved ID list
+// in lib/merchant-storage.ts. Safe to delete after final audit.
+// NOTE: getMockCertificate() still used by verify-lookup.ts as
+// temporary fallback — intentional, pending Phase C final pass.
+
 export type CertificateStatus =
   | "authenticated"
   | "transferred"

@@ -7,7 +7,8 @@
 // Static mock certificates (TEST-GOLD-001, etc.) always work via the
 // DEPRECATED mock-verify.ts fallback (see identity resolution below).
 
-import { getMockCertificate, type CertificateResult, type ProvenanceRecord } from "@/lib/mock-verify";
+import { getMockCertificate } from "@/lib/mock-verify";
+import type { CertificateResult, ProvenanceRecord } from "@/lib/types/certificate";
 import { getCertificateFromRegistry } from "@/lib/certificate-registry";
 import { getCertificateStatusRecord } from "@/lib/certificate-status";
 import type { PurchaseRecord } from "@/lib/purchase-storage";

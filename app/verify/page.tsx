@@ -3,14 +3,8 @@
 import { useState, useEffect, useId } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { type CertificateResult } from "@/lib/mock-verify";
+import type { CertificateResult } from "@/lib/types/certificate";
 import { lookupCertificate } from "@/lib/verify-lookup";
-import {
-  getBlockchainData,
-  formatTxHash,
-  getEtherscanUrl,
-  type BlockchainMetadata,
-} from "@/lib/mock-blockchain";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
 import GoldButton from "@/components/ui/GoldButton";
@@ -134,78 +128,6 @@ function ProvenanceRow({
   );
 }
 
-function BlockchainPanel({
-  data,
-  reduced,
-}: {
-  data: BlockchainMetadata;
-  reduced: boolean | null;
-}) {
-  return (
-    <motion.div
-      initial={reduced ? {} : { opacity: 0 }}
-      animate={reduced ? {} : { opacity: 1 }}
-      transition={{ duration: 0.4, delay: 0.9 }}
-      className="mt-6"
-    >
-      <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3">
-        On-Chain Record
-      </p>
-      <div className="border border-[var(--border)] p-5 space-y-3">
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-            Network
-          </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
-            {data.network}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-            Block
-          </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
-            {data.blockNumber.toLocaleString("en-US")}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-            Timestamp
-          </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
-            {new Date(data.timestamp).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-            Contract
-          </span>
-          <span className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--text-secondary)]">
-            {formatAddress(data.contractAddress)}
-          </span>
-        </div>
-        <div className="flex justify-between items-center pt-1 border-t border-[var(--border)]">
-          <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)]">
-            Transaction
-          </span>
-          <a
-            href={getEtherscanUrl(data.txHash)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-[family-name:var(--font-ibm-mono)] text-[11px] text-[var(--gold)] hover:underline underline-offset-2 transition-colors"
-          >
-            {formatTxHash(data.txHash)} ↗
-          </a>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 function ReportedStatusBanner({
   status,
   reportedDate,
@@ -257,12 +179,10 @@ function ResultCard({
   result,
   reduced,
   isOwner,
-  blockchainData,
 }: {
   result: CertificateResult;
   reduced: boolean | null;
   isOwner: boolean;
-  blockchainData: BlockchainMetadata | null;
 }) {
   const cardVariants = {
     initial: reduced ? {} : { opacity: 0, y: 24 },
@@ -428,9 +348,19 @@ function ResultCard({
           </motion.div>
         )}
 
-        {blockchainData && (
-          <BlockchainPanel data={blockchainData} reduced={reduced} />
-        )}
+        <motion.div
+          initial={reduced ? {} : { opacity: 0 }}
+          animate={reduced ? {} : { opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.9 }}
+          className="mt-6 border border-[var(--border)] p-5"
+        >
+          <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-2">
+            On-Chain Record
+          </p>
+          <p className="text-xs font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] leading-relaxed">
+            On-chain verification available after blockchain integration.
+          </p>
+        </motion.div>
 
       </motion.div>
     );
@@ -671,7 +601,6 @@ export default function VerifyPage() {
     certificate: null,
     hasCertificate: false,
   });
-  const blockchainData = result ? getBlockchainData(result.certificateId) : null;
   const certificateId = result?.certificateId ?? null;
 
   const timeline = useDomainSubscription(
@@ -807,7 +736,6 @@ export default function VerifyPage() {
             result={result}
             reduced={reduced}
             isOwner={isOwner}
-            blockchainData={blockchainData}
           />
         )}
       </AnimatePresence>

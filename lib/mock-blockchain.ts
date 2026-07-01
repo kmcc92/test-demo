@@ -1,3 +1,6 @@
+// DEPRECATED: replaced by certificate-events.ts timeline
+// and Phase 6 blockchain integration. Safe to delete after final audit.
+
 export interface BlockchainMetadata {
   txHash: `0x${string}`;
   blockNumber: bigint;
