@@ -52,14 +52,6 @@ export interface Campaign {
   href: string;
 }
 
-export interface JournalEntry {
-  id: string;
-  title: string;
-  excerpt: string;
-  image: string;
-  date: string;
-  slug: string;
-}
 
 export const PRODUCTS: Product[] = [
   {
@@ -281,26 +273,6 @@ export const CAMPAIGNS: Campaign[] = [
   },
 ];
 
-export const JOURNAL_ENTRIES: JournalEntry[] = [
-  {
-    id: "journal-001",
-    title: "On the Chain of Custody",
-    excerpt:
-      "What does it mean for a garment to have a permanent, unalterable record? We consider the philosophy behind provenance.",
-    image: u("photo-1601379327928-bedfaf9da2d0", 1200, 500),
-    date: "2026-04-20",
-    slug: "on-the-chain-of-custody",
-  },
-  {
-    id: "journal-002",
-    title: "The Archive Coat",
-    excerpt:
-      "How a single prototype becomes a collectible — and why the distinction between a garment and an object matters.",
-    image: u("photo-1573545289441-827c028f7a3b", 1200, 500),
-    date: "2026-03-15",
-    slug: "the-archive-coat",
-  },
-];
 
 export interface SaleRecord {
   date: string;
