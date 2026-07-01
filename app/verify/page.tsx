@@ -12,7 +12,6 @@ import {
   getEtherscanUrl,
   type BlockchainMetadata,
 } from "@/lib/mock-blockchain";
-import { useWallet } from "@/hooks/useWallet";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
 import GoldButton from "@/components/ui/GoldButton";
@@ -703,7 +702,6 @@ export default function VerifyPage() {
   const inputId = useId();
   const searchParams = useSearchParams();
   const idParam = searchParams.get("certificateId") ?? searchParams.get("id");
-  const { address: walletAddress } = useWallet();
   const { getResolvedPurchases } = useOwnership();
   const { user } = useAuth();
 
@@ -722,16 +720,10 @@ export default function VerifyPage() {
     () => (certificateId ? getCertificateTimeline(certificateId) : [])
   );
 
-  const effectiveOwner =
-    result?.certificateId === "TEST-GOLD-001" && walletAddress
-      ? walletAddress
-      : result?.owner;
-
-  const isOwner = !!(
-    walletAddress &&
-    effectiveOwner &&
-    walletAddress.toLowerCase() === effectiveOwner.toLowerCase()
-  );
+  const isOwner = !!(result?.certificateId && user?.email &&
+    getResolvedPurchases(user.email).some(
+      (p) => p.certificateId === result.certificateId
+    ));
 
   // Certificate metadata lookup — client-side only, after result is available.
   // Derives productId from verificationResult only; never reads storage during SSR.

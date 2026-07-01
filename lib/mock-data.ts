@@ -128,7 +128,6 @@ export const PRODUCTS: Product[] = [
     category: "outerwear",
     stock_type: "exclusive",
     edition: "001 / 010",
-    certificateId: "TEST-GOLD-001",
     description:
       "A sample jacket from the SS19 atelier archive. One of one.",
   },
@@ -140,7 +139,6 @@ export const PRODUCTS: Product[] = [
     category: "accessories",
     stock_type: "exclusive",
     edition: "002 / 010",
-    certificateId: "TEST-GOLD-002",
     description:
       "A structured carry piece from the archive collection. Hand-finished with premium hardware.",
   },
@@ -152,7 +150,6 @@ export const PRODUCTS: Product[] = [
     category: "outerwear",
     stock_type: "exclusive",
     edition: "003 / 010",
-    certificateId: "TEST-GOLD-003",
     description:
       "A structured leather jacket from the archive. Full grain leather, minimal hardware.",
   },
@@ -164,7 +161,6 @@ export const PRODUCTS: Product[] = [
     category: "tops",
     stock_type: "exclusive",
     edition: "004 / 010",
-    certificateId: "TEST-GOLD-004",
     description: "A hand-finished silk dress shirt from the archive. Eight produced.",
   },
 ];
