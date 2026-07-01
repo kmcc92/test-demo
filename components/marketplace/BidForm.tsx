@@ -6,7 +6,6 @@ import type { MarketplaceListing } from "@/lib/marketplace-types";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import { readCards } from "@/lib/payment-storage";
 import { formatPrice, formatAddress, formatTimestamp } from "@/lib/utils";
 import GoldButton from "@/components/ui/GoldButton";
 import { useToast } from "@/components/ui/Toast";
@@ -33,8 +32,6 @@ export default function BidForm({ listing }: BidFormProps) {
   function validate(): string | null {
     if (!user) return "Please sign in to place a bid";
     if (!isConnected || !address) return "Please connect your wallet in My Account";
-    const cards = readCards(user.email);
-    if (cards.length === 0) return "Please add a payment method in My Account";
     if (isExpired) return "This auction has ended";
     if (user.email === listing.sellerEmail) return "You cannot bid on your own listing";
     const amount = parseInt(bidInput.replace(/[^0-9]/g, ""), 10);

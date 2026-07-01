@@ -8,9 +8,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { formatPrice, truncateEmail } from "@/lib/utils";
 import type { MarketplaceBid } from "@/lib/marketplace-types";
+import type { AuctionWinner } from "@/contexts/MarketplaceContext";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import AuthBadge from "@/components/ui/AuthBadge";
 import BidForm from "@/components/marketplace/BidForm";
+import CheckoutModal from "@/components/checkout/CheckoutModal";
 import {
   getMarketplaceCertificateBadge,
   type MarketplaceCertificateBadge,
@@ -28,29 +30,70 @@ function pickWinner(bidHistory: MarketplaceBid[]): MarketplaceBid | null {
 export default function AuctionPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { getListingById, settleAuction } = useMarketplace();
+  const { getListingById, settleAuction, determineAuctionWinner, completeAuctionTransfer } = useMarketplace();
   const listing = getListingById(id);
 
   const [certBadge, setCertBadge] = useState<MarketplaceCertificateBadge>({
     hasCertificate: false,
   });
+  const [pendingWinner, setPendingWinner] = useState<AuctionWinner | null>(null);
 
   useEffect(() => {
     if (!listing?.productId) return;
     setCertBadge(getMarketplaceCertificateBadge(listing.productId));
   }, [listing?.productId]);
 
+  // Timer expiry: determine winner and either show payment modal (if current user won)
+  // or mark listing ended. Does not auto-charge — payment is always user-initiated.
   useEffect(() => {
     if (!listing || listing.status !== "active") return;
     const listingId = listing.id;
+
+    function handleExpiry() {
+      const winner = determineAuctionWinner(listingId);
+      if (winner) {
+        if (user && user.email === winner.email) {
+          setPendingWinner(winner);
+        } else {
+          // Winner is not present on this page. Mark ended — payment cannot be collected
+          // from an absent user in a client-side-only flow.
+          settleAuction(listingId, { force: true });
+        }
+      } else {
+        settleAuction(listingId, { force: true });
+      }
+    }
+
     const ms = new Date(listing.endsAt).getTime() - Date.now();
     if (ms <= 0) {
-      settleAuction(listingId);
+      handleExpiry();
       return;
     }
-    const timer = setTimeout(() => settleAuction(listingId), ms);
+    const timer = setTimeout(handleExpiry, ms);
     return () => clearTimeout(timer);
-  }, [listing?.id, listing?.endsAt, listing?.status, settleAuction]);
+  }, [listing?.id, listing?.endsAt, listing?.status, settleAuction, determineAuctionWinner, user]);
+
+  // Buy Now detection: when currentBid reaches buyNowPrice, show payment modal
+  // to the current user if they are the winning bidder.
+  useEffect(() => {
+    if (!listing || listing.status !== "active") return;
+    if (listing.buyNowPrice === undefined) return;
+    if (listing.currentBid < listing.buyNowPrice) return;
+    if (pendingWinner) return;
+
+    const winner = determineAuctionWinner(listing.id);
+    if (winner && user && user.email === winner.email) {
+      setPendingWinner(winner);
+    }
+  }, [
+    listing?.currentBid,
+    listing?.buyNowPrice,
+    listing?.id,
+    listing?.status,
+    determineAuctionWinner,
+    pendingWinner,
+    user,
+  ]);
 
   if (!listing) notFound();
 
@@ -310,6 +353,25 @@ export default function AuctionPage() {
           )}
         </div>
       </div>
+
+      {/* Payment modal — shown after Buy Now bid or auction expiry when current user won */}
+      {pendingWinner !== null && listing.status !== "sold" && (
+        <CheckoutModal
+          product={{
+            id: listing.id,
+            name: listing.productName,
+            price: pendingWinner.amount,
+            images: [listing.image],
+            certificateId: listing.certificateId,
+            requiresCertificate: true,
+          }}
+          onClose={() => setPendingWinner(null)}
+          onComplete={(session, _walletAddress, paymentIntentId) => {
+            completeAuctionTransfer(listing.id, paymentIntentId ?? session.txHash);
+            setPendingWinner(null);
+          }}
+        />
+      )}
     </div>
   );
 }

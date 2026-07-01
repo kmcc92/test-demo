@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import type { Product } from "@/lib/mock-data";
 import { generateCheckoutSession, type CheckoutSession } from "@/lib/mock-checkout";
 import { useWallet } from "@/hooks/useWallet";
 import { useToast } from "@/components/ui/Toast";
@@ -23,10 +22,22 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
+export interface CheckoutProductShape {
+  id: string;
+  name: string;
+  price: number;
+  images: string[];
+  certificateId?: string;
+  category?: string;
+  edition?: string;
+  stock_type?: string;
+  requiresCertificate?: boolean;
+}
+
 interface CheckoutModalProps {
-  product: Product;
+  product: CheckoutProductShape;
   onClose: () => void;
-  onComplete?: (session: CheckoutSession, walletAddress: string | undefined) => void;
+  onComplete?: (session: CheckoutSession, walletAddress: string | undefined, paymentIntentId?: string) => void;
 }
 
 type ShippingMethod = "standard" | "express" | "overnight";
@@ -144,7 +155,7 @@ function FieldInput({
 
 interface StripePaymentFormProps {
   total: number;
-  onSuccess: () => void;
+  onSuccess: (paymentIntentId: string) => void;
   paymentError: string | null;
   setPaymentError: (v: string | null) => void;
   paymentLoading: boolean;
@@ -211,7 +222,7 @@ function StripePaymentForm({
     }
 
     if (paymentIntent?.status === "succeeded") {
-      onSuccess();
+      onSuccess(paymentIntent.id);
     } else if (paymentIntent?.status === "requires_action") {
       setPaymentError("Additional verification required. Please try again.");
       setPaymentLoading(false);
@@ -353,9 +364,9 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
       .catch(() => setIntentError("Failed to initialize payment. Please try again."));
   }, [step, clientSecret, total]);
 
-  function handlePaymentSuccess() {
+  function handlePaymentSuccess(paymentIntentId: string) {
     setStep(4);
-    onComplete?.(session, walletAddress);
+    onComplete?.(session, walletAddress, paymentIntentId);
     showToast("Added to Collection", "gold");
   }
 
@@ -389,10 +400,10 @@ export default function CheckoutModal({ product, onClose, onComplete }: Checkout
     shippingAddress.country,
   ].filter(Boolean);
 
-  // Authenticated (exclusive) items must carry a pre-assigned certificateId —
-  // checkout never generates one. Missing/empty/whitespace-only blocks the purchase entirely.
+  // Authenticated items must carry a certificateId — missing/empty blocks the purchase.
   const missingCertificate =
-    product.stock_type === "exclusive" && !product.certificateId?.trim();
+    (product.requiresCertificate ?? product.stock_type === "exclusive") &&
+    !product.certificateId?.trim();
 
   useEffect(() => {
     if (missingCertificate) {

@@ -4,6 +4,15 @@ import { createContext, useContext, useState, useCallback, useRef } from "react"
 import type { MarketplaceListing, MarketplaceBid } from "@/lib/marketplace-types";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import { OwnershipContext } from "@/components/providers/OwnershipProvider";
+import { useToast } from "@/components/ui/Toast";
+import { emitDomainEvent } from "@/lib/domain-events";
+
+export interface AuctionWinner {
+  email: string;
+  wallet: string;
+  amount: number;
+  listingId: string;
+}
 
 type CreateListingParams = Omit<MarketplaceListing, "id" | "bidHistory" | "status" | "currentBid">;
 
@@ -12,6 +21,8 @@ interface MarketplaceContextValue {
   createListing: (params: CreateListingParams) => void;
   placeBid: (listingId: string, bid: Omit<MarketplaceBid, "id">) => void;
   settleAuction: (listingId: string, options?: { force?: boolean }) => void;
+  determineAuctionWinner: (listingId: string) => AuctionWinner | null;
+  completeAuctionTransfer: (listingId: string, stripePaymentId: string) => void;
   getListingById: (listingId: string) => MarketplaceListing | null;
   getListingByProductId: (productId: string) => MarketplaceListing | null;
   isListed: (productId: string) => boolean;
@@ -28,6 +39,7 @@ export function useMarketplaceContext() {
 export default function MarketplaceProvider({ children }: { children: React.ReactNode }) {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const ownership = useContext(OwnershipContext);
+  const { show: showToast } = useToast();
 
   // Ref keeps latest listings accessible in stable callbacks without re-creating them
   const listingsRef = useRef<MarketplaceListing[]>([]);
@@ -44,51 +56,82 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
     setListings((prev) => [...prev, listing]);
   }, []);
 
+  // Pure computation — no state changes, no side effects.
+  // Returns the top bidder if the auction has a valid winner, null otherwise.
+  const determineAuctionWinner = useCallback(
+    (listingId: string): AuctionWinner | null => {
+      const listing = listingsRef.current.find((l) => l.id === listingId);
+      if (!listing || listing.status !== "active") return null;
+      if (listing.bidHistory.length === 0) return null;
+      if (listing.currentBid < listing.reservePrice) return null;
+
+      const sorted = [...listing.bidHistory].sort((a, b) =>
+        b.amount !== a.amount
+          ? b.amount - a.amount
+          : new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const topBid = sorted[0];
+      return {
+        email: topBid.bidderEmail,
+        wallet: topBid.bidderWallet,
+        amount: topBid.amount,
+        listingId,
+      };
+    },
+    []
+  );
+
+  // Called ONLY after Stripe payment is confirmed.
+  // Idempotent: sold listing is a no-op.
+  const completeAuctionTransfer = useCallback(
+    (listingId: string, stripePaymentId: string) => {
+      const listing = listingsRef.current.find((l) => l.id === listingId);
+      if (!listing || listing.status === "sold") return;
+
+      const sorted = [...listing.bidHistory].sort((a, b) =>
+        b.amount !== a.amount
+          ? b.amount - a.amount
+          : new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      const topBid = sorted[0];
+      if (!topBid) return;
+
+      setListings((prev) =>
+        prev.map((l) => l.id === listingId ? { ...l, status: "sold" as const } : l)
+      );
+
+      try {
+        ownership?.removeOwnership(listing.sellerEmail, listing.productId);
+        const record: PurchaseRecord = {
+          id: stripePaymentId,
+          productId: listing.productId,
+          productName: listing.productName,
+          certificateId: listing.certificateId,
+          txHash: stripePaymentId,
+          price: topBid.amount,
+          purchasedAt: new Date().toISOString(),
+          walletAddress: topBid.bidderWallet || undefined,
+        };
+        ownership?.addOwnership(record);
+        emitDomainEvent("purchases-changed");
+      } catch (err) {
+        console.error(`completeAuctionTransfer failed for listing ${listingId}:`, err);
+        showToast("Payment received but ownership transfer failed. Please contact support.");
+      }
+    },
+    [ownership, showToast]
+  );
+
+  // Marks a listing "ended" when there is no valid winner (no bids, reserve not met,
+  // or winner is not present to complete payment). Does not transfer ownership.
   const settleAuction = useCallback((listingId: string, options?: { force?: boolean }) => {
     const listing = listingsRef.current.find((l) => l.id === listingId);
     if (!listing || listing.status !== "active") return;
     if (!options?.force && new Date(listing.endsAt).getTime() >= Date.now()) return;
-
-    const noBids = listing.bidHistory.length === 0;
-    const reserveNotMet = listing.currentBid < listing.reservePrice;
-
-    if (noBids || reserveNotMet) {
-      setListings((prev) =>
-        prev.map((l) => l.id === listingId ? { ...l, status: "ended" as const } : l)
-      );
-      return;
-    }
-
-    // Winner: sort by amount DESC, timestamp DESC (tie-break)
-    const sorted = [...listing.bidHistory].sort((a, b) =>
-      b.amount !== a.amount
-        ? b.amount - a.amount
-        : new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    );
-    const winner = sorted[0];
-
-    // Mark sold — idempotent guard for subsequent calls
     setListings((prev) =>
-      prev.map((l) => l.id === listingId ? { ...l, status: "sold" as const } : l)
+      prev.map((l) => l.id === listingId ? { ...l, status: "ended" as const } : l)
     );
-
-    // Transfer ownership
-    ownership?.removeOwnership(listing.sellerEmail, listing.productId);
-    const txHash =
-      "0x" +
-      Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-    const record: PurchaseRecord = {
-      id: `auction-${listingId}-${Date.now()}`,
-      productId: listing.productId,
-      productName: listing.productName,
-      certificateId: listing.certificateId,
-      price: winner.amount,
-      purchasedAt: new Date().toISOString(),
-      walletAddress: winner.bidderWallet,
-      txHash,
-    };
-    ownership?.addOwnership(record);
-  }, [ownership]);
+  }, []);
 
   const placeBid = useCallback((listingId: string, bid: Omit<MarketplaceBid, "id">) => {
     const newBid: MarketplaceBid = {
@@ -96,26 +139,19 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
       id: `bid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     };
 
-    let triggerInstantBuy = false;
     const updatedListings = listingsRef.current.map((l) => {
       if (l.id !== listingId) return l;
       const updatedHistory = [newBid, ...l.bidHistory];
       const currentBid = Math.max(...updatedHistory.map((b) => b.amount));
-      if (l.buyNowPrice !== undefined && newBid.amount >= l.buyNowPrice) {
-        triggerInstantBuy = true;
-      }
       return { ...l, bidHistory: updatedHistory, currentBid };
     });
 
-    // Keep the ref in sync immediately so settleAuction (called synchronously
-    // below) sees this bid — setListings alone won't update it until re-render.
+    // Keep the ref in sync immediately so determineAuctionWinner (called synchronously
+    // by the auction page's useEffect after setListings triggers a re-render) sees
+    // this bid.
     listingsRef.current = updatedListings;
     setListings(updatedListings);
-
-    if (triggerInstantBuy) {
-      settleAuction(listingId, { force: true });
-    }
-  }, [settleAuction]);
+  }, []);
 
   const getListingById = useCallback(
     (listingId: string) => listings.find((l) => l.id === listingId) ?? null,
@@ -133,7 +169,17 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
   );
 
   return (
-    <MarketplaceContext.Provider value={{ listings, createListing, placeBid, settleAuction, getListingById, getListingByProductId, isListed }}>
+    <MarketplaceContext.Provider value={{
+      listings,
+      createListing,
+      placeBid,
+      settleAuction,
+      determineAuctionWinner,
+      completeAuctionTransfer,
+      getListingById,
+      getListingByProductId,
+      isListed,
+    }}>
       {children}
     </MarketplaceContext.Provider>
   );
