@@ -3,8 +3,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
-import { PRODUCTS, type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
+import { type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
 import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
+import { merchantProductRepo } from "@/lib/repositories";
 import { getCertificateStatus } from "@/lib/certificate-status";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
@@ -17,7 +18,9 @@ import type { PurchaseRecord } from "@/lib/purchase-storage";
 // Falls back to undefined when productId is absent (library-only archive entries).
 function getSourceItem(productId: string | undefined) {
   if (!productId) return undefined;
-  return PRODUCTS.find((p) => p.id === productId);
+  const p = merchantProductRepo.getById(productId);
+  if (!p) return undefined;
+  return { ...p, images: [p.image] };
 }
 
 function formatDate(iso: string) {
