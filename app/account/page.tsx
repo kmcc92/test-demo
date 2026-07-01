@@ -7,8 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import { PRODUCTS, AUCTIONS } from "@/lib/mock-data";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getProductImage } from "@/lib/utils";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import PurchaseHistory from "@/components/account/PurchaseHistory";
 import PaymentMethods from "@/components/account/PaymentMethods";
@@ -22,14 +21,6 @@ import {
   clearStatus,
   type CertificateStatusRecord,
 } from "@/lib/certificate-status";
-
-function getProductImage(productId: string): string {
-  const product = PRODUCTS.find((p) => p.id === productId);
-  if (product) return product.images[0] ?? "";
-  const auction = AUCTIONS.find((a) => a.id === productId);
-  if (auction) return auction.image ?? "";
-  return "";
-}
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (

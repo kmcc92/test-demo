@@ -1,13 +1,10 @@
-﻿import { PRODUCTS } from "@/lib/mock-data";
-import ExclusiveGrid from "@/components/exclusive/ExclusiveGrid";
+﻿import ExclusiveGrid from "@/components/exclusive/ExclusiveGrid";
 
 export const metadata = {
   title: "Exclusive — TEST",
 };
 
 export default function ExclusivePage() {
-  const exclusiveProducts = PRODUCTS.filter((p) => p.stock_type === "exclusive");
-
   return (
     <div className="min-h-full bg-[var(--bg-dark)] flex-1">
       {/* Header */}
@@ -24,7 +21,7 @@ export default function ExclusivePage() {
         </p>
       </div>
 
-      <ExclusiveGrid products={exclusiveProducts} />
+      <ExclusiveGrid products={[]} />
     </div>
   );
 }
