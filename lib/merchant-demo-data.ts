@@ -1,3 +1,5 @@
+// DEPRECATED — no longer imported by any active UI. Retained for reference only.
+// Orders and customers are derived from real purchase data when a storage source exists.
 import type { MerchantProduct } from "@/lib/merchant-storage";
 
 export type FakeOrder = {

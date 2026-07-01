@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getMerchantProducts } from "@/lib/merchant-storage";
-import { generateDemoOrders, type FakeOrder } from "@/lib/merchant-demo-data";
 import { formatPrice, truncateEmail } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
@@ -14,7 +13,7 @@ const BORDER_SOLID = "#e0e0e0";
 
 type Filter = "all" | "shop" | "exclusive" | "processing" | "shipped" | "delivered";
 
-const STATUS_COLORS: Record<FakeOrder["status"], { text: string; bg: string }> = {
+const STATUS_COLORS: Record<"processing" | "shipped" | "delivered", { text: string; bg: string }> = {
   processing: { text: "#92400e", bg: "#fef3c7" },
   shipped: { text: "#1e40af", bg: "#dbeafe" },
   delivered: { text: "#166534", bg: "#dcfce7" },
@@ -28,21 +27,15 @@ export default function MerchantOrdersPage() {
     setProducts(getMerchantProducts());
   }, []);
 
-  const allOrders = useMemo(() => {
-    const orders = generateDemoOrders(products);
-    return [...orders].sort((a, b) => (a.orderedAt < b.orderedAt ? 1 : -1));
-  }, [products]);
-
-  const filtered = useMemo(() => {
-    if (filter === "all") return allOrders;
-    if (filter === "shop" || filter === "exclusive") {
-      return allOrders.filter((o) => o.productType === filter);
-    }
-    return allOrders.filter((o) => o.status === filter);
-  }, [allOrders, filter]);
-
-  const totalRevenue = allOrders.reduce((s, o) => s + o.amount, 0);
-  const processingCount = allOrders.filter((o) => o.status === "processing").length;
+  type OrderEntry = {
+    orderId: string; productName: string; productType: "shop" | "exclusive";
+    customerEmail: string; amount: number;
+    status: "processing" | "shipped" | "delivered"; orderedAt: string;
+  };
+  const allOrders: OrderEntry[] = [];
+  const filtered: OrderEntry[] = [];
+  const totalRevenue = 0;
+  const processingCount = 0;
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },

@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getMerchantProducts } from "@/lib/merchant-storage";
-import { generateDemoOrders, generateDemoCustomers } from "@/lib/merchant-demo-data";
 import { formatPrice, truncateEmail } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
@@ -19,14 +18,13 @@ export default function MerchantCustomersPage() {
     setProducts(getMerchantProducts());
   }, []);
 
-  const orders = useMemo(() => generateDemoOrders(products), [products]);
-  const customers = useMemo(() => generateDemoCustomers(orders), [orders]);
-
-  const totalRevenue = orders.reduce((s, o) => s + o.amount, 0);
-  const avgOrderValue = orders.length > 0 ? Math.round(totalRevenue / orders.length) : 0;
-  const exclusiveBuyerCount = customers.filter((c) =>
-    c.productTypes.includes("exclusive")
-  ).length;
+  type CustomerEntry = {
+    email: string; productTypes: ("shop" | "exclusive")[];
+    totalOrders: number; totalSpent: number; lastOrderDate: string;
+  };
+  const customers: CustomerEntry[] = [];
+  const avgOrderValue = 0;
+  const exclusiveBuyerCount = 0;
 
   if (products.length === 0) {
     return (

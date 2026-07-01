@@ -4,7 +4,6 @@ import { useState, useEffect, useId } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { type CertificateResult } from "@/lib/mock-verify";
-import { SERVICE_HISTORY } from "@/lib/mock-data";
 import { lookupCertificate } from "@/lib/verify-lookup";
 import {
   getBlockchainData,
@@ -433,46 +432,6 @@ function ResultCard({
           <BlockchainPanel data={blockchainData} reduced={reduced} />
         )}
 
-        {(() => {
-          const history = SERVICE_HISTORY[result.certificateId];
-          if (!history || history.length === 0) return null;
-          return (
-            <motion.div
-              initial={reduced ? {} : { opacity: 0 }}
-              animate={reduced ? {} : { opacity: 1 }}
-              transition={{ duration: 0.4, delay: 1.1 }}
-              className="mt-6"
-            >
-              <p className="text-[10px] tracking-[0.3em] uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-3">
-                Service History
-              </p>
-              <div className="border border-[var(--border)]">
-                {history.map((record, i) => (
-                  <div
-                    key={record.id}
-                    className="p-4"
-                    style={i > 0 ? { borderTop: "1px solid var(--border)" } : undefined}
-                  >
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className="text-[10px] tracking-widest uppercase font-[family-name:var(--font-dm-sans)] text-[var(--text-secondary)]">
-                        {record.type}
-                      </span>
-                      <span className="font-[family-name:var(--font-ibm-mono)] text-[10px] text-[var(--text-muted)] shrink-0 ml-4">
-                        {record.date}
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-[family-name:var(--font-dm-sans)] text-[var(--text-muted)] mb-1">
-                      {record.performedBy}
-                    </p>
-                    <p className="text-xs font-[family-name:var(--font-dm-sans)] text-[var(--text-secondary)] leading-relaxed">
-                      {record.notes}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          );
-        })()}
       </motion.div>
     );
   }

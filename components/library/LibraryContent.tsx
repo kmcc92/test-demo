@@ -12,12 +12,6 @@ import { useOwnership } from "@/hooks/useOwnership";
 import { useAuth } from "@/hooks/useAuth";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
-interface LibraryContentProps {
-  totalValue: number;
-  years: string;
-  totalTransactions: number;
-}
-
 // Returns the canonical product record for a library entry.
 // Searches regular products first, then exclusive — matches PRODUCTS array order.
 // Falls back to undefined when productId is absent (library-only archive entries).
@@ -576,11 +570,7 @@ function LibraryCard({
 
 // ── Main component ────────────────────────────────────────────────────────
 
-export default function LibraryContent({
-  totalValue,
-  years,
-  totalTransactions,
-}: LibraryContentProps) {
+export default function LibraryContent() {
   const reduced = useReducedMotion();
   const [selected, setSelected] = useState<LibraryEntry | null>(null);
   const { purchases } = useOwnership();
