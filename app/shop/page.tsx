@@ -1,14 +1,8 @@
-﻿// UI_ONLY: static demo content for shop catalog display — not business logic
-import { PRODUCTS } from "@/lib/mock-data";
 import ShopClient from "@/components/shop/ShopClient";
 
 export const metadata = { title: "Shop — TEST" };
 
 export default function ShopPage() {
-  const filteredProducts = PRODUCTS.filter(
-    (p) => p.id.startsWith("prod-") || p.stock_type === "regular"
-  );
-
   return (
     <>
       <div className="max-w-7xl mx-auto px-8 pt-12 pb-0 w-full">
@@ -19,7 +13,7 @@ export default function ShopPage() {
           Shop
         </h1>
       </div>
-      <ShopClient products={filteredProducts} />
+      <ShopClient />
     </>
   );
 }

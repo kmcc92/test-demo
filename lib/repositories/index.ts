@@ -1,4 +1,5 @@
 import { localPurchaseRepo } from "./localStorage/purchaseRepo";
+import { localMerchantProductRepo } from "./localStorage/merchantProductRepo";
 import { localServiceRequestRepo } from "./localStorage/serviceRequestRepo";
 import { localCertificateEventRepo } from "./localStorage/certificateEventRepo";
 import { localCertificateStatusRepo } from "./localStorage/certificateStatusRepo";
@@ -26,3 +27,7 @@ export const certificateStatusRepo = USE_SUPABASE
 export const certificateRegistryRepo = USE_SUPABASE
   ? localCertificateRegistryRepo
   : localCertificateRegistryRepo;
+
+export const merchantProductRepo = USE_SUPABASE
+  ? localMerchantProductRepo
+  : localMerchantProductRepo;

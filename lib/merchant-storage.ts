@@ -7,6 +7,7 @@ export type MerchantProduct = {
   description: string;
   price: number;
   image: string;
+  category?: string;
   certificateId?: string;
   createdAt: string;
   merchantEmail: string;

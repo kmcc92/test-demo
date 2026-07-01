@@ -1,4 +1,5 @@
 import type { PurchaseRecord } from "@/lib/purchase-storage";
+import type { MerchantProduct } from "@/lib/merchant-storage";
 import type { ServiceRequest } from "@/lib/service-requests";
 import type { CertificateEvent } from "@/lib/certificate-events";
 import type { CertificateStatus, CertificateStatusRecord } from "@/lib/certificate-status";
@@ -32,6 +33,13 @@ export interface CertificateStatusRepository {
   ): void;
   clear(certificateId: string): void;
   getRecord(certificateId: string): CertificateStatusRecord | null;
+}
+
+export interface MerchantProductRepository {
+  getAll(): MerchantProduct[];
+  getByType(type: "shop" | "exclusive"): MerchantProduct[];
+  getById(id: string): MerchantProduct | null;
+  upsert(product: MerchantProduct): void;
 }
 
 export interface CertificateRegistryRepository {

@@ -1,16 +1,16 @@
 "use client";
 
+// FLAG: merchant-products-changed domain event does not exist.
+// ShopClient uses a one-time mount read as fallback.
+// Wire merchant-products-changed in next pass to enable reactive updates.
+
 import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import type { Product } from "@/lib/mock-data";
-import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
+import { merchantProductRepo } from "@/lib/repositories";
 import ProductCard from "./ProductCard";
 import ShopQuickView from "./ShopQuickView";
-
-interface ShopClientProps {
-  products: Product[];
-}
 
 type SortKey = "featured" | "price-asc" | "price-desc" | "newest";
 
@@ -23,7 +23,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "newest",     label: "Newest First" },
 ];
 
-function mapMerchantShop(p: MerchantProduct): Product {
+function mapToProduct(p: ReturnType<typeof merchantProductRepo.getAll>[number]): Product {
   return {
     id: p.id,
     name: p.name,
@@ -34,27 +34,21 @@ function mapMerchantShop(p: MerchantProduct): Product {
     certificateId: undefined,
     edition: undefined,
     sizes: ["S", "M", "L", "XL"],
-    category: "accessories",
+    category: (p.category as Product["category"]) ?? "accessories",
   };
 }
 
-export default function ShopClient({ products }: ShopClientProps) {
+export default function ShopClient() {
   const reduced = useReducedMotion();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState(ALL);
   const [sort, setSort] = useState<SortKey>("featured");
   const [selected, setSelected] = useState<Product | null>(null);
-  const [merchantRaw, setMerchantRaw] = useState<MerchantProduct[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    setMerchantRaw(getMerchantProductsByType("shop"));
+    setAllProducts(merchantProductRepo.getByType("shop").map(mapToProduct));
   }, []);
-
-  const merchantMapped = merchantRaw
-    .filter((p) => p.id.startsWith("merchant-"))
-    .map(mapMerchantShop);
-
-  const allProducts = [...products, ...merchantMapped];
 
   const q = search.trim().toLowerCase();
 
@@ -326,7 +320,32 @@ export default function ShopClient({ products }: ShopClientProps) {
       </p>
 
       {/* Product grid */}
-      {displayed.length === 0 ? (
+      {allProducts.length === 0 ? (
+        <div style={{ padding: "80px 0", textAlign: "center" }}>
+          <p
+            style={{
+              fontSize: "11px",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              fontFamily: "var(--font-dm-sans), sans-serif",
+              color: "var(--text-muted)",
+              marginBottom: 12,
+            }}
+          >
+            No products available yet
+          </p>
+          <p
+            style={{
+              fontSize: "11px",
+              fontFamily: "var(--font-dm-sans), sans-serif",
+              color: "var(--text-muted)",
+              opacity: 0.6,
+            }}
+          >
+            Shop products added via the merchant portal will appear here.
+          </p>
+        </div>
+      ) : displayed.length === 0 ? (
         <div style={{ padding: "80px 0", textAlign: "center" }}>
           <p
             style={{

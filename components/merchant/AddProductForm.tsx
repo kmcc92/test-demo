@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  addMerchantProduct,
   generateRandomString,
   isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 import { registerCertificate } from "@/lib/certificate-registry";
+import { merchantProductRepo } from "@/lib/repositories";
 
 interface AddProductFormProps {
   onSuccess?: () => void;
@@ -20,6 +20,14 @@ const BLACK = "#080808";
 const MUTED = "#8a8a8a";
 const BORDER = "#e0e0e0";
 const RED = "#c0392b";
+
+const CATEGORY_OPTIONS = [
+  { value: "", label: "— Select category (optional) —" },
+  { value: "outerwear", label: "Outerwear" },
+  { value: "tops", label: "Tops" },
+  { value: "footwear", label: "Footwear" },
+  { value: "accessories", label: "Accessories" },
+];
 
 function FieldLabel({ children, error }: { children: React.ReactNode; error?: string }) {
   return (
@@ -74,6 +82,7 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [image, setImage] = useState("");
+  const [category, setCategory] = useState("");
   const [type, setType] = useState<"shop" | "exclusive">(lockedType ?? "shop");
   const [certificateId, setCertificateId] = useState("");
   const [errors, setErrors] = useState<Partial<Record<"name" | "description" | "price" | "image" | "certificateId", string>>>({});
@@ -120,13 +129,14 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
       description: description.trim(),
       price: parseInt(price, 10),
       image: image.trim(),
+      category: category || undefined,
       certificateId:
         type === "exclusive" ? certificateId.trim() : undefined,
       createdAt: new Date().toISOString(),
       merchantEmail: user.email,
     };
 
-    addMerchantProduct(product);
+    merchantProductRepo.upsert(product);
 
     // Minting event — certificateId becomes a known identity the moment
     // the merchant creates the exclusive product.
@@ -143,6 +153,7 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
     setDescription("");
     setPrice("");
     setImage("");
+    setCategory("");
     setType("shop");
     setCertificateId("");
     setErrors({});
@@ -210,6 +221,22 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
             placeholder="https://…"
           />
           <FieldError message={errors.image} />
+        </div>
+
+        {/* Category */}
+        <div>
+          <FieldLabel>Category</FieldLabel>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ ...inputStyle(false), appearance: "none" as const }}
+          >
+            {CATEGORY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Type selector */}
