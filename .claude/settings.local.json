@@ -43,7 +43,8 @@
       "Bash(taskkill /PID 13956 /F)",
       "Bash(grep -o '^NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=.\\\\{0,8\\\\}' .env.local)",
       "Bash(npx --no-install playwright --version)",
-      "Bash(command -v vercel)"
+      "Bash(command -v vercel)",
+      "PowerShell(cd C:\\\\Users\\\\Kevin\\\\test-demo; \\(Get-Content CLAUDE_SYSTEM_CONTRACT.md | Measure-Object -Line\\).Lines)"
     ]
   },
   "enabledPlugins": {

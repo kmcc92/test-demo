@@ -8,12 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:supabase": "tsx --env-file=.env.local scripts/test-supabase.ts"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.11",
     "@stripe/react-stripe-js": "^6.6.0",
     "@stripe/stripe-js": "^9.8.0",
+    "@supabase/supabase-js": "^2.110.0",
     "@tanstack/react-query": "^5.100.10",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
@@ -35,6 +37,7 @@
     "eslint-config-next": "16.2.6",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
+    "tsx": "^4.22.5",
     "typescript": "^5",
     "vitest": "^4.1.9"
   }

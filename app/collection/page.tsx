@@ -16,20 +16,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOwnership } from "@/hooks/useOwnership";
 import { formatPrice, getProductImage } from "@/lib/utils";
 import {
-  getCertificateStatus,
   clearStatus,
   type CertificateStatus,
 } from "@/lib/certificate-status";
 import {
-  getCertificateTimeline,
   recordEvent,
   type CertificateEvent,
   type CertificateEventType,
 } from "@/lib/certificate-events";
-import {
-  getCertificateFromRegistry,
-  type RegisteredCertificate,
-} from "@/lib/certificate-registry";
+import { getCertificateView } from "@/lib/certificate-view";
 import {
   createServiceRequest,
   getActiveServiceRequest,
@@ -117,7 +112,6 @@ interface CollectionItem {
   displayName: string;
   status: CertificateStatus;
   timeline: CertificateEvent[];
-  registryEntry: RegisteredCertificate | null;
   activeRequest: ServiceRequest | null;
   image: string;
 }
@@ -729,10 +723,10 @@ export default function CollectionPage() {
   const items = useMemo<CollectionItem[]>(
     () =>
       authenticatedPurchases.map((purchase) => {
-        const registryEntry = getCertificateFromRegistry(purchase.certificateId);
+        const view = getCertificateView(purchase.certificateId);
         const displayName =
-          (registryEntry?.productName && registryEntry.productName.length > 0
-            ? registryEntry.productName
+          (view.productName && view.productName.length > 0
+            ? view.productName
             : undefined) ??
           (purchase.productName && purchase.productName.length > 0 ? purchase.productName : undefined) ??
           "Unknown Item";
@@ -740,9 +734,8 @@ export default function CollectionPage() {
         return {
           purchase,
           displayName,
-          status: getCertificateStatus(purchase.certificateId),
-          timeline: getCertificateTimeline(purchase.certificateId),
-          registryEntry,
+          status: view.status,
+          timeline: view.timeline,
           activeRequest: getActiveServiceRequest(purchase.certificateId),
           image: getProductImage(purchase.productId),
         };

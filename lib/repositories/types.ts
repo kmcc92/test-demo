@@ -62,3 +62,24 @@ export interface CertificateRegistryRepository {
   }>;
   isRegistered(certificateId: string): boolean;
 }
+
+export interface AsyncCertificateRegistryRepository {
+  get(certificateId: string): Promise<{
+    certificateId: string;
+    productName: string;
+    merchantId?: string;
+    registeredAt: string;
+  } | null>;
+  register(params: {
+    certificateId: string;
+    productName: string;
+    merchantId?: string;
+  }): Promise<void>;
+  list(): Promise<Array<{
+    certificateId: string;
+    productName: string;
+    merchantId?: string;
+    registeredAt: string;
+  }>>;
+  isRegistered(certificateId: string): Promise<boolean>;
+}
