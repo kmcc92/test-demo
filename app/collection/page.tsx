@@ -15,10 +15,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useOwnership } from "@/hooks/useOwnership";
 import { formatPrice, getProductImage } from "@/lib/utils";
-import {
-  clearStatus,
-  type CertificateStatus,
-} from "@/lib/certificate-status";
+import { type CertificateStatus } from "@/lib/certificate-status";
 import {
   recordEvent,
   type CertificateEvent,
@@ -36,7 +33,7 @@ import AuthBadge from "@/components/ui/AuthBadge";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
-import { certificateRegistryVersion } from "@/lib/repositories";
+import { certificateRegistryVersion, certificateStatusVersion, clearStatusEntry } from "@/lib/repositories";
 
 // stripePromise must be at module level — never inside a component
 const stripePromise = loadStripe(
@@ -707,9 +704,9 @@ export default function CollectionPage() {
     "service-requests-changed",
     () => Date.now()
   );
-  const certificateStatusVersion = useDomainSubscription(
+  const statusVersion = useDomainSubscription(
     "certificate-status-changed",
-    () => Date.now()
+    () => certificateStatusVersion()
   );
   const certificatesVersion = useDomainSubscription(
     "certificates-changed",
@@ -746,16 +743,17 @@ export default function CollectionPage() {
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authenticatedPurchases, mounted, certificateEventsVersion, serviceRequestsVersion, certificateStatusVersion, certificatesVersion]
+    [authenticatedPurchases, mounted, certificateEventsVersion, serviceRequestsVersion, statusVersion, certificatesVersion]
   );
 
   const activeItems = items.filter((i) => i.status === "active");
   const reportedItems = items.filter((i) => i.status === "stolen" || i.status === "lost");
   const totalAuthenticatedItems = activeItems.length + reportedItems.length;
 
-  function handleClearReport(certificateId: string) {
-    clearStatus(certificateId);
-    emitDomainEvent("certificate-status-changed");
+  async function handleClearReport(certificateId: string) {
+    // clearStatusEntry persists to Supabase; the repo emits
+    // "certificate-status-changed" on the observable change (no manual emit).
+    await clearStatusEntry(certificateId);
   }
 
   function handleRequestService(item: CollectionItem) {

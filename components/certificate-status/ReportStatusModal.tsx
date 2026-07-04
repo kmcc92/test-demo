@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import GoldButton from "@/components/ui/GoldButton";
-import { reportStolen, reportLost } from "@/lib/certificate-status";
+import { reportStolenEntry, reportLostEntry } from "@/lib/repositories";
 
 const S = {
   eyebrow: {
@@ -93,15 +93,20 @@ export default function ReportStatusModal({
 
   const label = type === "stolen" ? "Stolen" : "Lost";
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!location.trim()) {
       setLocationError("Required");
       return;
     }
-    if (type === "stolen") {
-      reportStolen(certificateId, { dateStolen: date, location: location.trim(), note: note.trim() || undefined });
-    } else {
-      reportLost(certificateId, { dateLost: date, location: location.trim(), note: note.trim() || undefined });
+    try {
+      if (type === "stolen") {
+        await reportStolenEntry(certificateId, { dateStolen: date, location: location.trim(), note: note.trim() || undefined });
+      } else {
+        await reportLostEntry(certificateId, { dateLost: date, location: location.trim(), note: note.trim() || undefined });
+      }
+    } catch {
+      setLocationError("Could not save report — please try again");
+      return;
     }
     setSuccess(true);
     onReported();

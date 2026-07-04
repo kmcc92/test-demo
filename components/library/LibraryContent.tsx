@@ -5,8 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
 import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
-import { merchantProductRepo } from "@/lib/repositories";
-import { getCertificateStatus } from "@/lib/certificate-status";
+import { merchantProductRepo, getStatusEntry, certificateStatusVersion } from "@/lib/repositories";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
@@ -589,9 +588,9 @@ export default function LibraryContent() {
   // items on first paint is expected and acceptable.
   const [mounted, setMounted] = useState(false);
 
-  const certificateStatusVersion = useDomainSubscription(
+  const statusVersion = useDomainSubscription(
     "certificate-status-changed",
-    () => Date.now()
+    () => certificateStatusVersion()
   );
 
   useEffect(() => {
@@ -664,11 +663,11 @@ export default function LibraryContent() {
       displayEntries.filter((e) => {
         if (!e.productId) return true;
         if (e.certificateId.length === 0) return false;
-        const status = getCertificateStatus(e.certificateId);
+        const status = getStatusEntry(e.certificateId);
         return status !== "stolen" && status !== "lost";
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displayEntries, mounted, certificateStatusVersion]
+    [displayEntries, mounted, statusVersion]
   );
 
   // Derive ownership map from eligible purchases only.

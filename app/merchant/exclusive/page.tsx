@@ -12,12 +12,14 @@ import {
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 import { getCertificates, type Certificate } from "@/lib/certificate-storage";
-import { registerCertificateEntry } from "@/lib/repositories";
 import {
-  getCertificateStatusRecord,
-  clearStatus,
-  type CertificateStatusRecord,
-} from "@/lib/certificate-status";
+  registerCertificateEntry,
+  getStatusRecordEntry,
+  clearStatusEntry,
+  certificateStatusVersion,
+} from "@/lib/repositories";
+import { type CertificateStatusRecord } from "@/lib/certificate-status";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import ReportStatusModal from "@/components/certificate-status/ReportStatusModal";
 import { formatPrice } from "@/lib/utils";
 
@@ -113,17 +115,23 @@ export default function MerchantExclusivePage() {
     setCertificates(getCertificates());
     const map: Record<string, CertificateStatusRecord | null> = {};
     list.forEach((p) => {
-      if (p.certificateId) map[p.certificateId] = getCertificateStatusRecord(p.certificateId);
+      if (p.certificateId) map[p.certificateId] = getStatusRecordEntry(p.certificateId);
     });
     setStatusMap(map);
   }
 
-  function handleClearStatus(certificateId: string) {
-    clearStatus(certificateId);
+  async function handleClearStatus(certificateId: string) {
+    await clearStatusEntry(certificateId);
     setStatusMap((prev) => ({ ...prev, [certificateId]: null }));
   }
 
-  useEffect(() => { refresh(); }, []);
+  // Re-read on mount and whenever the status snapshot version changes
+  // (hydration / cross-device report).
+  const statusVersion = useDomainSubscription(
+    "certificate-status-changed",
+    () => certificateStatusVersion()
+  );
+  useEffect(() => { refresh(); }, [statusVersion]);
 
   // Build cert lookup by certificate.id (not productId)
   const certById = useMemo(() => {
@@ -653,7 +661,7 @@ export default function MerchantExclusivePage() {
           onClose={() => setReportTarget(null)}
           onReported={() => {
             const certificateId = reportTarget.certificateId;
-            setStatusMap((prev) => ({ ...prev, [certificateId]: getCertificateStatusRecord(certificateId) }));
+            setStatusMap((prev) => ({ ...prev, [certificateId]: getStatusRecordEntry(certificateId) }));
           }}
         />
       )}

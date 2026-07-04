@@ -9,8 +9,7 @@
 
 import { getMockCertificate } from "@/lib/mock-verify";
 import type { CertificateResult, ProvenanceRecord } from "@/lib/types/certificate";
-import { getRegistryEntry } from "@/lib/repositories";
-import { getCertificateStatusRecord } from "@/lib/certificate-status";
+import { getRegistryEntry, getStatusRecordEntry } from "@/lib/repositories";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
 function buildAuthenticatedResult(
@@ -108,7 +107,7 @@ export async function lookupCertificate(
   // Status overlay is UI enrichment only, applied after the result is resolved
   // and never influences the found/authenticated determination above.
   if (result.status !== "not_found") {
-    const statusRecord = getCertificateStatusRecord(result.certificateId);
+    const statusRecord = getStatusRecordEntry(result.certificateId);
     result = {
       ...result,
       reportedStatus: statusRecord?.status ?? "active",

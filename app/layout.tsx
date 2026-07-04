@@ -10,6 +10,7 @@ import Web3Provider from "@/components/providers/Web3Provider";
 import AuthProvider from "@/components/providers/AuthProvider";
 import OwnershipProvider from "@/components/providers/OwnershipProvider";
 import CertificateRegistryProvider from "@/components/providers/CertificateRegistryProvider";
+import CertificateAnnotationsProvider from "@/components/providers/CertificateAnnotationsProvider";
 import MarketplaceProvider from "@/contexts/MarketplaceContext";
 
 const cormorant = Cormorant_Garamond({
@@ -58,13 +59,15 @@ export default async function RootLayout({
             <AuthProvider>
               <OwnershipProvider>
                 <CertificateRegistryProvider>
-                  <MarketplaceProvider>
+                  <CertificateAnnotationsProvider>
+                    <MarketplaceProvider>
                     <Navbar />
                     <PageTransition>
                       <main className="flex-1 flex flex-col pt-16">{children}</main>
                     </PageTransition>
                     <Footer />
-                  </MarketplaceProvider>
+                    </MarketplaceProvider>
+                  </CertificateAnnotationsProvider>
                 </CertificateRegistryProvider>
               </OwnershipProvider>
             </AuthProvider>

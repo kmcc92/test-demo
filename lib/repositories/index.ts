@@ -5,9 +5,19 @@ import { localCertificateEventRepo } from "./localStorage/certificateEventRepo";
 import { localCertificateStatusRepo } from "./localStorage/certificateStatusRepo";
 import { localCertificateRegistryRepo } from "./localStorage/certificateRegistryRepo";
 import { supabaseCertificateRegistryRepo } from "./supabase/certificateRegistryRepo";
+import { supabaseCertificateStatusRepo } from "./supabase/certificateStatusRepo";
 import { getCertificateFromRegistry, registerCertificate } from "@/lib/certificate-registry";
 import type { RegisteredCertificate } from "@/lib/certificate-registry";
 import { recordEvent } from "@/lib/certificate-events";
+import {
+  getCertificateStatus,
+  getCertificateStatusRecord,
+  reportStolen,
+  reportLost,
+  clearStatus,
+  type CertificateStatus,
+  type CertificateStatusRecord,
+} from "@/lib/certificate-status";
 
 // Global migration switch — flip to true when ALL domains are on Supabase.
 const USE_SUPABASE = false;
@@ -16,6 +26,7 @@ const USE_SUPABASE = false;
 // every other domain stays on localStorage until its own pass. Flip one flag
 // per domain — the global switch above remains false until the last flip.
 const USE_SUPABASE_CERTIFICATES = true;
+const USE_SUPABASE_STATUS = true;
 
 export const purchaseRepo = USE_SUPABASE
   ? localPurchaseRepo // replace with supabasePurchaseRepo later
@@ -95,4 +106,115 @@ export async function registerCertificateEntry(params: {
   }
   // localStorage path: registerCertificate records the "created" event itself.
   registerCertificate(params);
+}
+
+// ---- Certificate status: backend-hiding accessors ----
+
+export function getStatusRecordEntry(
+  certificateId: string
+): CertificateStatusRecord | null {
+  return USE_SUPABASE_STATUS
+    ? supabaseCertificateStatusRepo.getStatusRecord(certificateId)
+    : getCertificateStatusRecord(certificateId);
+}
+
+export function getStatusEntry(certificateId: string): CertificateStatus {
+  return USE_SUPABASE_STATUS
+    ? supabaseCertificateStatusRepo.getStatus(certificateId)
+    : getCertificateStatus(certificateId);
+}
+
+export function certificateStatusVersion(): number {
+  return USE_SUPABASE_STATUS ? supabaseCertificateStatusRepo.version() : 0;
+}
+
+export async function hydrateCertificateStatus(): Promise<() => void> {
+  return USE_SUPABASE_STATUS
+    ? supabaseCertificateStatusRepo.hydrate()
+    : () => {};
+}
+
+// ---- Coupled status+event write wrappers ----
+//
+// Status durability is AUTHORITATIVE (persist-first, must succeed). Event
+// recording is OBSERVATIONAL (best-effort) — a failure to record the event
+// NEVER rolls back a successful status change. Events are NOT migrated this
+// pass, so the event portion still writes to localStorage via recordEvent
+// (hybrid: status durable in Supabase, event local temporarily — safe because
+// the event is a secondary log the primary status write does not depend on).
+
+export async function reportStolenEntry(
+  certificateId: string,
+  details?: { dateStolen?: string; location?: string; note?: string }
+): Promise<void> {
+  if (USE_SUPABASE_STATUS) {
+    await supabaseCertificateStatusRepo.setStatus(certificateId, "stolen", {
+      reportedDate: details?.dateStolen,
+      reportedLocation: details?.location,
+      note: details?.note,
+    });
+    try {
+      recordEvent({
+        certificateId: certificateId.trim().toUpperCase(),
+        eventType: "reported_stolen",
+        actorType: "owner",
+        metadata: {
+          location: details?.location,
+          reportedDate: details?.dateStolen,
+          note: details?.note,
+        },
+      });
+    } catch {
+      // Observational only — status change above is unaffected.
+    }
+    return;
+  }
+  reportStolen(certificateId, details);
+}
+
+export async function reportLostEntry(
+  certificateId: string,
+  details?: { dateLost?: string; location?: string; note?: string }
+): Promise<void> {
+  if (USE_SUPABASE_STATUS) {
+    await supabaseCertificateStatusRepo.setStatus(certificateId, "lost", {
+      reportedDate: details?.dateLost,
+      reportedLocation: details?.location,
+      note: details?.note,
+    });
+    try {
+      recordEvent({
+        certificateId: certificateId.trim().toUpperCase(),
+        eventType: "reported_lost",
+        actorType: "owner",
+        metadata: {
+          location: details?.location,
+          reportedDate: details?.dateLost,
+          note: details?.note,
+        },
+      });
+    } catch {
+      // Observational only.
+    }
+    return;
+  }
+  reportLost(certificateId, details);
+}
+
+export async function clearStatusEntry(certificateId: string): Promise<void> {
+  if (USE_SUPABASE_STATUS) {
+    await supabaseCertificateStatusRepo.setStatus(certificateId, "active");
+    try {
+      recordEvent({
+        certificateId: certificateId.trim().toUpperCase(),
+        eventType: "recovered",
+        actorType: "owner",
+        metadata: {},
+      });
+    } catch {
+      // Observational only.
+    }
+    return;
+  }
+  clearStatus(certificateId);
 }
