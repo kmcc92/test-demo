@@ -15,6 +15,7 @@ import {
 } from "@/lib/certificate-display-adapter";
 import { getCertificateTimeline } from "@/lib/certificate-events";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
+import { certificateRegistryVersion } from "@/lib/repositories";
 
 const EVENT_LABEL_MAP: Record<string, string> = {
   created: "Authenticated",
@@ -608,6 +609,14 @@ export default function VerifyPage() {
     () => (certificateId ? getCertificateTimeline(certificateId) : [])
   );
 
+  // Registry version — bumps when the Supabase-backed snapshot hydrates or a
+  // realtime insert arrives. Used to re-run a deep-link lookup that raced
+  // hydration (see the idParam effect below).
+  const certificatesVersion = useDomainSubscription(
+    "certificates-changed",
+    () => certificateRegistryVersion()
+  );
+
   const isOwner = !!(result?.certificateId && user?.email &&
     getResolvedPurchases(user.email).some(
       (p) => p.certificateId === result.certificateId
@@ -643,11 +652,16 @@ export default function VerifyPage() {
     setIsVerifying(false);
   }
 
+  // Auto-verify on NFC deep-link. Re-runs on registry hydration: if the first
+  // lookup raced an empty snapshot and returned not_found, a later
+  // "certificates-changed" bump re-runs it so the cert resolves once present.
+  // Once positively resolved, further version bumps are ignored (no re-verify).
   useEffect(() => {
     if (!idParam) return;
+    if (result && result.status !== "not_found") return;
     handleVerify(idParam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idParam]);
+  }, [idParam, certificatesVersion]);
 
   function handleReset() {
     setResult(null);

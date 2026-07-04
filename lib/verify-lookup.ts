@@ -9,7 +9,7 @@
 
 import { getMockCertificate } from "@/lib/mock-verify";
 import type { CertificateResult, ProvenanceRecord } from "@/lib/types/certificate";
-import { getCertificateFromRegistry } from "@/lib/certificate-registry";
+import { getRegistryEntry } from "@/lib/repositories";
 import { getCertificateStatusRecord } from "@/lib/certificate-status";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 
@@ -91,7 +91,7 @@ export async function lookupCertificate(
     result = buildAuthenticatedResult(match, ownerEmail);
   } else {
     // Step 2: Identity resolution — registry wins over mock-verify, no merging.
-    const registryEntry = getCertificateFromRegistry(id);
+    const registryEntry = getRegistryEntry(id);
     if (registryEntry) {
       result = {
         status: "authenticated",
