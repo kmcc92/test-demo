@@ -36,6 +36,7 @@ import AuthBadge from "@/components/ui/AuthBadge";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
+import { certificateRegistryVersion } from "@/lib/repositories";
 
 // stripePromise must be at module level — never inside a component
 const stripePromise = loadStripe(
@@ -710,6 +711,10 @@ export default function CollectionPage() {
     "certificate-status-changed",
     () => Date.now()
   );
+  const certificatesVersion = useDomainSubscription(
+    "certificates-changed",
+    () => certificateRegistryVersion()
+  );
 
   useEffect(() => setMounted(true), []);
 
@@ -741,7 +746,7 @@ export default function CollectionPage() {
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authenticatedPurchases, mounted, certificateEventsVersion, serviceRequestsVersion, certificateStatusVersion]
+    [authenticatedPurchases, mounted, certificateEventsVersion, serviceRequestsVersion, certificateStatusVersion, certificatesVersion]
   );
 
   const activeItems = items.filter((i) => i.status === "active");

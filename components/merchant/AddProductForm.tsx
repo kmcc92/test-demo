@@ -7,8 +7,7 @@ import {
   isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
-import { registerCertificate } from "@/lib/certificate-registry";
-import { merchantProductRepo } from "@/lib/repositories";
+import { merchantProductRepo, registerCertificateEntry } from "@/lib/repositories";
 
 interface AddProductFormProps {
   onSuccess?: () => void;
@@ -117,7 +116,7 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate() || !user) return;
 
@@ -136,16 +135,26 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
       merchantEmail: user.email,
     };
 
-    merchantProductRepo.upsert(product);
-
-    // Minting event — certificateId becomes a known identity the moment
-    // the merchant creates the exclusive product.
+    // Minting event — certificateId becomes a known identity the moment the
+    // merchant creates the exclusive product. Persist the certificate durably
+    // FIRST; only create the product and show success once it succeeds, so the
+    // UI never reflects a product whose certificate failed to register.
     if (product.certificateId) {
-      registerCertificate({
-        certificateId: product.certificateId,
-        productName: product.name,
-      });
+      try {
+        await registerCertificateEntry({
+          certificateId: product.certificateId,
+          productName: product.name,
+        });
+      } catch {
+        setErrors((p) => ({
+          ...p,
+          certificateId: "Could not register certificate — please try again",
+        }));
+        return;
+      }
     }
+
+    merchantProductRepo.upsert(product);
 
     onSuccess?.();
     setSuccess(true);

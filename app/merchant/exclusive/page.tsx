@@ -12,7 +12,7 @@ import {
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 import { getCertificates, type Certificate } from "@/lib/certificate-storage";
-import { registerCertificate } from "@/lib/certificate-registry";
+import { registerCertificateEntry } from "@/lib/repositories";
 import {
   getCertificateStatusRecord,
   clearStatus,
@@ -160,7 +160,7 @@ export default function MerchantExclusivePage() {
     return Object.keys(next).length === 0;
   }
 
-  function handleAddSubmit(e: React.FormEvent) {
+  async function handleAddSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateAdd() || !user) return;
 
@@ -178,14 +178,23 @@ export default function MerchantExclusivePage() {
       merchantEmail: user.email,
     };
 
-    addMerchantProduct(product);
+    // Minting event — certificateId becomes a known identity the moment the
+    // merchant creates the exclusive product. Persist the certificate durably
+    // FIRST; only create the product and show success once it succeeds.
+    try {
+      await registerCertificateEntry({
+        certificateId: product.certificateId!,
+        productName: product.name,
+      });
+    } catch {
+      setAddErrors((p) => ({
+        ...p,
+        certificateId: "Could not register certificate — please try again",
+      }));
+      return;
+    }
 
-    // Minting event — certificateId becomes a known identity the moment
-    // the merchant creates the exclusive product.
-    registerCertificate({
-      certificateId: product.certificateId!,
-      productName: product.name,
-    });
+    addMerchantProduct(product);
 
     refresh();
     setSuccessMsg(`Exclusive piece added. Certificate: ${certificateId}`);

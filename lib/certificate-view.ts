@@ -14,7 +14,7 @@
 // productName: null and isRegistered: false, mirroring the getCertificateByCertId
 // never-reverts rule (§11).
 
-import { getCertificateFromRegistry } from "@/lib/certificate-registry";
+import { getRegistryEntry } from "@/lib/repositories";
 import { getCertificateStatus, getCertificateStatusRecord } from "@/lib/certificate-status";
 import { getCertificateTimeline } from "@/lib/certificate-events";
 import type { CertificateEvent } from "@/lib/certificate-events";
@@ -43,7 +43,7 @@ export function getCertificateView(certificateId: string): CertificateView {
     };
   }
 
-  const registryEntry = getCertificateFromRegistry(certificateId);
+  const registryEntry = getRegistryEntry(certificateId);
   const status = getCertificateStatus(certificateId);
   const statusRecord = getCertificateStatusRecord(certificateId);
   const timeline = getCertificateTimeline(certificateId);
