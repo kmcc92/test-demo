@@ -6,7 +6,7 @@
 
 ## CURRENT PHASE
 
-Phase 5 — Supabase Migration · **Step 9 complete** (service requests).
+Phase 5 — Supabase Migration · **Step 10a complete** (marketplace listings).
 (Phases 1–4 complete; see COMPLETED below for their detail.)
 
 ---
@@ -30,12 +30,43 @@ importing a repo never loads `lib/supabase.ts` (import-safety).
 | Purchases | `supabase/purchaseRepo.ts` | single **current-user** array (private) | email-scoped hydrate + epoch guard; **atomic `transfer_ownership` RPC** for auction transfers |
 | Merchant products | `supabase/merchantProductRepo.ts` | flat `Map<id>` (global public catalog) | full CRUD; LWW edits; one-way create→cert coupling |
 | Service requests | `supabase/serviceRequestRepo.ts` | flat `Map<id>` (global workflow) | full CRUD; refurbish/replace lifecycle; GLOBAL (no owner column, merchant reads all); `certificate_id` is a FK→certificates |
+| Marketplace listings | `supabase/marketplaceRepo.ts` | flat `Map<id>` (global CRUD) | **Step 10a — LISTINGS SCALARS ONLY.** create + status (active→ended/sold); `certificate_id` FK→certificates. **Bids NOT migrated** (marketplace_bids = Step 10b) |
 
 Per-domain flags in `lib/repositories/index.ts` — **all currently `true`**:
 `USE_SUPABASE_CERTIFICATES`, `USE_SUPABASE_STATUS`, `USE_SUPABASE_EVENTS`,
 `USE_SUPABASE_PURCHASES`, `USE_SUPABASE_MERCHANT_PRODUCTS`,
-`USE_SUPABASE_SERVICE_REQUESTS`.
+`USE_SUPABASE_SERVICE_REQUESTS`, `USE_SUPABASE_MARKETPLACE`.
 Global `USE_SUPABASE` stays `false` until the last domain flips.
+
+Step 10a notes (marketplace listings — persistence only):
+- **Table ≠ TS model.** `marketplace_listings` has the 14 listing scalars +
+  `created_at`, but NO column for `bidHistory` (→ separate `marketplace_bids`,
+  out of scope), `provenanceDepth`, or `serviceHistoryCount`. The repo persists
+  scalars only; it reconstructs `provenanceDepth: 1` / `serviceHistoryCount: 0`
+  (the only values ever created) and returns `bidHistory: []` on read. Prices
+  round to integers (integer columns).
+- **Bids remain a SESSION overlay.** `contexts/MarketplaceContext.tsx` still owns
+  per-listing session bids (`sessionBids` map) and composes repo-listings + bid
+  overlay (bidHistory + live `currentBid`) for auction consumers. `placeBid` /
+  `determineAuctionWinner` / bidding rules UNCHANGED — only WHERE bids are stored
+  moved (out of the listings array, since the repo now owns listings). **The
+  provider is NOT strictly lifecycle-only** — it retains bid state TEMPORARILY
+  until Step 10b migrates `marketplace_bids`. Documented deviation, per decision.
+- **Consumer split.** Bid-displaying consumers keep `useMarketplace()` (composed):
+  auction detail, BidForm, CreateListingModal, SelectItemModal, auctions grid,
+  MarketplacePreview. Pure visibility/status consumers read index accessors
+  (`getMarketplaceListings`, `marketplaceVersion`): ExclusiveGrid (visibility),
+  account, merchant. No consumer imports the repo directly.
+- **Ownership transfer on sale UNCHANGED** — `completeAuctionTransfer` persists
+  status→sold (persist-first) then calls the existing `transferOwnershipEntry`
+  RPC path. Marketplace only changes LISTING state, never purchases/certificates.
+- **Known limitation:** a hard reload / direct deep-link of `/auctions/[id]`
+  can 404 during the async hydration window (the page's `notFound()` guard fires
+  on the empty pre-hydration snapshot). This is NOT a regression — pre-migration,
+  session-only listings 404'd on EVERY reload. The scripted click-through
+  (create → click card → detail) works: the provider lives in the persistent
+  layout, so it stays hydrated across client navigation. A hydration-aware guard
+  is a candidate follow-up (out of scope for persistence-only).
 
 Step 9 notes: service requests are GLOBAL, not user-scoped — the table has no
 owner/email column and `/merchant` reads every request via
@@ -50,9 +81,10 @@ no epoch guard). CRUD dedup = Map replacement keyed by request id (not seenIds).
 — they no longer import `lib/service-requests` (except the `ServiceRequest` type)
 and no longer manually emit `service-requests-changed` (the repo emits on change).
 
-### Still on localStorage (not yet migrated)
+### Still on localStorage / session (not yet migrated)
 
-- **Marketplace listings** (`contexts/MarketplaceContext.tsx`) — session-only React state — Step 10
+- **Marketplace bids** (`marketplace_bids` table exists; still session-only in
+  `contexts/MarketplaceContext.tsx` `sessionBids`) — **Step 10b**
 - Legacy backends kept as the flag-off path and **must NOT be deleted**:
   `lib/certificate-registry.ts`, `lib/certificate-status.ts`,
   `lib/certificate-events.ts`, `lib/purchase-storage.ts`, `lib/merchant-storage.ts`,
@@ -67,10 +99,11 @@ Real Supabase Auth + RLS is pending (end of Phase 5).
 
 - **Realtime must be enabled per-table** in Supabase for live cross-device push:
   `certificates`, `certificate_status`, `certificate_events`, `purchases`,
-  `merchant_products`, `service_requests`. Without it, reads/writes still work
-  but changes appear only on next hydrate (reload/login), not instantly.
-  **Step 9 TODO (manual): enable Realtime for `service_requests`** in
-  Dashboard → Database → Replication before cross-device testing.
+  `merchant_products`, `service_requests`, `marketplace_listings`. Without it,
+  reads/writes still work but changes appear only on next hydrate (reload/login),
+  not instantly. **Step 10a TODO (manual): enable Realtime for
+  `marketplace_listings`** in Dashboard → Database → Replication before
+  cross-device testing. (Step 9's `service_requests` toggle likewise.)
 - **Service requests are NOT access-secured** (same as purchases): no owner
   column, RLS off, anon key — any client can read/write any request. The
   customer/merchant split is UX-only until RLS + real auth. Also: `certificate_id`
@@ -93,8 +126,11 @@ Real Supabase Auth + RLS is pending (end of Phase 5).
 ### Remaining Phase 5 sequence
 
 1. ~~**Step 9 — Service requests → Supabase**~~ ✅ done
-2. **Step 10 — Marketplace listings → Supabase** (removes the session-only limitation)
-3. **Supabase Auth + RLS** — real identities; flip email scoping into an enforced
+2. ~~**Step 10a — Marketplace listings → Supabase**~~ ✅ done (listings persisted;
+   bids still session)
+3. **Step 10b — Marketplace bids → Supabase** (`marketplace_bids`) — removes the
+   session-only bid overlay; reduce MarketplaceContext to lifecycle-only
+4. **Supabase Auth + RLS** — real identities; flip email scoping into an enforced
    security boundary; enable per-user/per-designer row policies (multi-tenant groundwork)
 
 ---

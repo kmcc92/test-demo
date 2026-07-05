@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useMarketplace } from "@/hooks/useMarketplace";
 import { type ServiceRequest } from "@/lib/service-requests";
 import {
   recordEventEntry,
@@ -11,19 +10,23 @@ import {
   getAllServiceRequestsEntry,
   updateServiceRequestEntry,
   serviceRequestsVersion,
+  getMarketplaceListings,
+  marketplaceVersion,
 } from "@/lib/repositories";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
 
 export default function MerchantDashboard() {
   const { user, logout } = useAuth();
-  const { listings } = useMarketplace();
 
   // Re-render on catalog changes (hydration / create / delete).
   useDomainSubscription("merchant-products-changed", () => merchantProductsVersion());
   const shopCount = getMerchantProductsByTypeEntry("shop").length;
   const exclusiveCount = getMerchantProductsByTypeEntry("exclusive").length;
-  const activeListings = listings.filter((l) => l.status === "active").length;
+
+  // Active listing count — read persisted listings through the index accessor.
+  useDomainSubscription("marketplace-listings-changed", () => marketplaceVersion());
+  const activeListings = getMarketplaceListings().filter((l) => l.status === "active").length;
 
   const [quotingId, setQuotingId] = useState<string | null>(null);
   const [quoteDecision, setQuoteDecision] = useState<"refurbish" | "replace">("refurbish");

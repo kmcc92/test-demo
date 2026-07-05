@@ -26,7 +26,8 @@ Get-Process node | Stop-Process -Force
 ## Current Phase
 **Phase 5 — Supabase Migration (in progress)**
 - Steps 1–9 ✅ (certificates, status, events, purchases, merchant products, /library, /collection, service requests)
-- **Step 10 ⏳ Marketplace — NEXT**, then Supabase Auth, RLS
+- Step 10a ✅ Marketplace **listings** persisted (bids still session)
+- **Step 10b ⏳ Marketplace bids (`marketplace_bids`) — NEXT**, then Supabase Auth, RLS
 
 ## Supabase Setup
 - **Region:** ca-central-1 (Canada), free tier
@@ -36,7 +37,7 @@ Get-Process node | Stop-Process -Force
 - **RPC:** `transfer_ownership` (atomic, SECURITY DEFINER, idempotent on payment_ref)
 - **RLS:** OFF until auth migration
 - **Realtime:** must enable per-table in Dashboard → Database → Replication
-- **Flags (all true):** USE_SUPABASE_CERTIFICATES, USE_SUPABASE_STATUS, USE_SUPABASE_EVENTS, USE_SUPABASE_PURCHASES, USE_SUPABASE_MERCHANT_PRODUCTS, USE_SUPABASE_SERVICE_REQUESTS; global USE_SUPABASE stays false
+- **Flags (all true):** USE_SUPABASE_CERTIFICATES, USE_SUPABASE_STATUS, USE_SUPABASE_EVENTS, USE_SUPABASE_PURCHASES, USE_SUPABASE_MERCHANT_PRODUCTS, USE_SUPABASE_SERVICE_REQUESTS, USE_SUPABASE_MARKETPLACE; global USE_SUPABASE stays false
 
 ## Repository-Snapshot Pattern (every domain follows this)
 - **Repo owns:** module-scoped snapshot + `hydrate()` + `dispose()` + `version()` + Realtime subscription + domain event emission

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { useOwnership } from "@/hooks/useOwnership";
-import { useMarketplace } from "@/hooks/useMarketplace";
 import { formatPrice, getProductImage } from "@/lib/utils";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import PurchaseHistory from "@/components/account/PurchaseHistory";
@@ -14,6 +13,9 @@ import PaymentMethods from "@/components/account/PaymentMethods";
 import Wishlist from "@/components/account/Wishlist";
 import OrderTracking from "@/components/account/OrderTracking";
 import CreateListingModal from "@/components/marketplace/CreateListingModal";
+// NOTE: listings are read through index accessors (persisted snapshot); this page
+// shows only listing STATUS/seller, never bid-derived values, so it does not need
+// the composed bid overlay from useMarketplace.
 import ReportStatusModal from "@/components/certificate-status/ReportStatusModal";
 import GoldButton from "@/components/ui/GoldButton";
 import { type CertificateStatusRecord } from "@/lib/certificate-status";
@@ -21,7 +23,10 @@ import {
   getStatusRecordEntry,
   clearStatusEntry,
   certificateStatusVersion,
+  getMarketplaceListings,
+  marketplaceVersion,
 } from "@/lib/repositories";
+import { isListedProduct } from "@/lib/market-state";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -50,7 +55,6 @@ export default function AccountPage() {
   const { user, isLoaded, logout } = useAuth();
   const { isConnected, truncatedAddress, connect, disconnect } = useWallet();
   const { purchases } = useOwnership();
-  const { listings, isListed } = useMarketplace();
   const [walletMounted, setWalletMounted] = useState(false);
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
   const [listingTarget, setListingTarget] = useState<{ purchase: PurchaseRecord; image: string } | null>(null);
@@ -62,6 +66,13 @@ export default function AccountPage() {
   useEffect(() => {
     if (isLoaded && !user) router.push("/");
   }, [isLoaded, user, router]);
+
+  // Persisted marketplace listings (status/seller only — no bid overlay needed).
+  const marketplaceVer = useDomainSubscription(
+    "marketplace-listings-changed",
+    () => marketplaceVersion()
+  );
+  const listings = useMemo(() => getMarketplaceListings(), [marketplaceVer]);
 
   // Certificate status overlay — refreshed whenever purchases change OR the
   // status snapshot version changes (hydration / cross-device report).
@@ -202,7 +213,7 @@ export default function AccountPage() {
             <div className="border border-[var(--border)]">
               {authenticatedPurchases.map((purchase, i) => {
                 const image = getProductImage(purchase.productId);
-                const listed = isListed(purchase.productId);
+                const listed = isListedProduct(purchase.productId, listings);
                 return (
                   <div
                     key={purchase.id}

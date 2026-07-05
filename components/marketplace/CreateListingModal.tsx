@@ -115,27 +115,38 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
     return () => document.removeEventListener("keydown", handler);
   }, [resetAndClose]);
 
-  function handleConfirm() {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  async function handleConfirm() {
     if (!user) return;
     if (isListed(purchase.productId)) return;
 
-    createListing({
-      productId: purchase.productId,
-      productName: purchase.productName,
-      certificateId: purchase.certificateId,
-      image,
-      sellerEmail: user.email,
-      sellerWallet: address ?? "",
-      reservePrice: parseFloat(reservePrice),
-      buyNowPrice: buyNowPrice.trim() ? parseFloat(buyNowPrice) : undefined,
-      minimumIncrement: parseFloat(minimumIncrement) || 50,
-      endsAt: new Date(Date.now() + DURATION_MS[duration]).toISOString(),
-      condition: condition.trim(),
-      provenanceDepth: 1,
-      serviceHistoryCount: 0,
-    });
-
-    setSuccess(true);
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      // Persist-first: the listing is durably created before we show success.
+      await createListing({
+        productId: purchase.productId,
+        productName: purchase.productName,
+        certificateId: purchase.certificateId,
+        image,
+        sellerEmail: user.email,
+        sellerWallet: address ?? "",
+        reservePrice: parseFloat(reservePrice),
+        buyNowPrice: buyNowPrice.trim() ? parseFloat(buyNowPrice) : undefined,
+        minimumIncrement: parseFloat(minimumIncrement) || 50,
+        endsAt: new Date(Date.now() + DURATION_MS[duration]).toISOString(),
+        condition: condition.trim(),
+        provenanceDepth: 1,
+        serviceHistoryCount: 0,
+      });
+      setSuccess(true);
+    } catch {
+      setSubmitError("Could not create the listing. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const buyNowError =
@@ -455,11 +466,16 @@ export default function CreateListingModal({ purchase, image, onClose }: CreateL
                     ))}
                   </div>
 
+                  {submitError && (
+                    <p style={{ fontSize: "11px", fontFamily: "var(--font-dm-sans), sans-serif", color: "#c0392b", marginBottom: "12px" }}>
+                      {submitError}
+                    </p>
+                  )}
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <GoldButton variant="primary" size="lg" className="w-full" onClick={handleConfirm}>
+                    <GoldButton variant="primary" size="lg" className="w-full" onClick={handleConfirm} loading={submitting} disabled={submitting}>
                       List for Auction
                     </GoldButton>
-                    <GoldButton variant="outline" size="md" className="w-full" onClick={() => setStep(4)}>
+                    <GoldButton variant="outline" size="md" className="w-full" onClick={() => setStep(4)} disabled={submitting}>
                       Back
                     </GoldButton>
                   </div>

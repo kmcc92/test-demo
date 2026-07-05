@@ -21,6 +21,7 @@ import {
   type CreateServiceRequestInput,
   type ServiceRequestUpdate,
 } from "./supabase/serviceRequestRepo";
+import { supabaseMarketplaceRepo } from "./supabase/marketplaceRepo";
 import { supabaseArchiveRepo, type ArchiveEntry } from "./supabase/archiveRepo";
 
 export type { ArchiveEntry } from "./supabase/archiveRepo";
@@ -42,6 +43,7 @@ import {
   createServiceRequest,
   updateServiceRequest,
 } from "@/lib/service-requests";
+import type { MarketplaceListing } from "@/lib/marketplace-types";
 
 export type { MerchantProductUpdate } from "./supabase/merchantProductRepo";
 export type {
@@ -79,6 +81,7 @@ const USE_SUPABASE_EVENTS = true;
 const USE_SUPABASE_PURCHASES = true;
 const USE_SUPABASE_MERCHANT_PRODUCTS = true;
 const USE_SUPABASE_SERVICE_REQUESTS = true;
+const USE_SUPABASE_MARKETPLACE = true;
 
 export const purchaseRepo = USE_SUPABASE
   ? localPurchaseRepo // replace with supabasePurchaseRepo later
@@ -503,6 +506,63 @@ export async function updateServiceRequestEntry(
     return;
   }
   updateServiceRequest(id, updates);
+}
+
+// ---- Marketplace listings (global CRUD): backend-hiding accessors ----
+//
+// Step 10a — LISTINGS PERSISTENCE ONLY. The repo owns the persisted listing
+// SCALARS; per-listing bids (bidHistory) remain a SESSION overlay in
+// MarketplaceContext (marketplace_bids is Step 10b). The context composes repo
+// listings + bid overlay for auction surfaces; pure visibility/status consumers
+// read these accessors directly. Writes are authoritative persist-first; the repo
+// emits "marketplace-listings-changed" on observable change. Ownership transfer
+// on sale stays on the existing transferOwnershipEntry path — marketplace only
+// changes LISTING state, never purchases/certificates.
+
+export function getMarketplaceListings(): MarketplaceListing[] {
+  return USE_SUPABASE_MARKETPLACE ? supabaseMarketplaceRepo.getAll() : [];
+}
+
+export function getMarketplaceListing(id: string): MarketplaceListing | null {
+  return USE_SUPABASE_MARKETPLACE ? supabaseMarketplaceRepo.getById(id) : null;
+}
+
+export function getMarketplaceListingByProductId(
+  productId: string
+): MarketplaceListing | null {
+  return USE_SUPABASE_MARKETPLACE
+    ? supabaseMarketplaceRepo.getByProductId(productId)
+    : null;
+}
+
+export function marketplaceVersion(): number {
+  return USE_SUPABASE_MARKETPLACE ? supabaseMarketplaceRepo.version() : 0;
+}
+
+export async function hydrateMarketplace(): Promise<() => void> {
+  return USE_SUPABASE_MARKETPLACE ? supabaseMarketplaceRepo.hydrate() : () => {};
+}
+
+export function disposeMarketplace(): void {
+  if (USE_SUPABASE_MARKETPLACE) supabaseMarketplaceRepo.dispose();
+}
+
+// Authoritative persist-first create (listing scalars only; bidHistory is a
+// session overlay and is not persisted here).
+export async function createMarketplaceListingEntry(
+  listing: MarketplaceListing
+): Promise<void> {
+  if (USE_SUPABASE_MARKETPLACE) await supabaseMarketplaceRepo.create(listing);
+}
+
+// The only post-create listing mutation: active→ended (settle) / active→sold
+// (auction completion). Persist-first; ownership transfer is a SEPARATE call the
+// caller makes AFTER this, on the existing transferOwnershipEntry path.
+export async function setMarketplaceListingStatusEntry(
+  id: string,
+  status: MarketplaceListing["status"]
+): Promise<void> {
+  if (USE_SUPABASE_MARKETPLACE) await supabaseMarketplaceRepo.setStatus(id, status);
 }
 
 // ---- Public archive (global, read-only): backend-hiding accessors ----

@@ -2,6 +2,7 @@
 
 export type DomainEvent =
   | "service-requests-changed"
+  | "marketplace-listings-changed"
   | "certificate-events-changed"
   | "certificate-status-changed"
   | "certificates-changed"

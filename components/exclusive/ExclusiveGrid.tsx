@@ -1,17 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { Product } from "@/lib/mock-data";
 import { type MerchantProduct } from "@/lib/merchant-storage";
-import { getMerchantProductsByTypeEntry, merchantProductsVersion } from "@/lib/repositories";
+import {
+  getMerchantProductsByTypeEntry,
+  merchantProductsVersion,
+  getMarketplaceListings,
+  marketplaceVersion,
+} from "@/lib/repositories";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import QuickViewDrawer from "./QuickViewDrawer";
 import { useOwnership } from "@/hooks/useOwnership";
-import { useMarketplace } from "@/hooks/useMarketplace";
 import { usePurchaseFlow } from "@/hooks/usePurchaseFlow";
 import { getVisibleProducts } from "@/lib/market-state";
 import PrerequisitesModal from "@/components/checkout/PrerequisitesModal";
@@ -41,7 +45,6 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
   const [merchantRaw, setMerchantRaw] = useState<MerchantProduct[]>([]);
   const reduced = useReducedMotion();
   const { isOwned, purchases } = useOwnership();
-  const { isListed, listings } = useMarketplace();
   const { step, initiatePurchase, confirm, dismiss } = usePurchaseFlow();
 
   const productsVersion = useDomainSubscription(
@@ -51,6 +54,14 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
   useEffect(() => {
     setMerchantRaw(getMerchantProductsByTypeEntry("exclusive"));
   }, [productsVersion]);
+
+  // Persisted listings drive product visibility (getVisibleProducts). Read
+  // synchronously through the index accessor; re-render on listing changes.
+  const marketplaceVer = useDomainSubscription(
+    "marketplace-listings-changed",
+    () => marketplaceVersion()
+  );
+  const listings = useMemo(() => getMarketplaceListings(), [marketplaceVer]);
 
   const merchantMapped = merchantRaw.map(mapMerchantExclusive);
 
