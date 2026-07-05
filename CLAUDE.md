@@ -27,7 +27,8 @@ Get-Process node | Stop-Process -Force
 **Phase 5 — Supabase Migration (in progress)**
 - Steps 1–9 ✅ (certificates, status, events, purchases, merchant products, /library, /collection, service requests)
 - Step 10a ✅ Marketplace **listings** persisted (bids still session)
-- **Step 10b ⏳ Marketplace bids (`marketplace_bids`) — NEXT**, then Supabase Auth, RLS
+- Step 10b ✅ **Real Supabase Auth** (email/password identity; authz still deferred to RLS)
+- **NEXT ⏳ Marketplace bids (`marketplace_bids`)**, then RLS + auth.uid scoping
 
 ## Supabase Setup
 - **Region:** ca-central-1 (Canada), free tier
@@ -57,10 +58,13 @@ Get-Process node | Stop-Process -Force
 - Price IS public (core value prop)
 - All privacy is UX-only until RLS + real auth (documented in code)
 
-## Auth (Fake — until Supabase Auth migration)
-- `merchant@test.com` = merchant role, any password ≥6 chars
-- Any other email = buyer role
-- Auth relies on localStorage — incognito breaks it
+## Auth (REAL — Supabase GoTrue email/password, as of Step 10b)
+- Authentication is REAL; **authorization is NOT** (RLS off, repos email-keyed, anon key unrestricted — do not claim user data is protected)
+- Merchant role = email allowlist: `merchant@test.com` → merchant, any other email → buyer (derived on session restore, persists through refresh)
+- **Demo merchant:** `merchant@test.com` / `merchant123` (pre-created, email confirmed — change pw in dashboard if desired). Customers self-register.
+- Email confirmation is DISABLED in the dashboard (Auth → Providers → Email) so signup is instant; code falls back gracefully if re-enabled
+- Session owned by Supabase (its own localStorage key + auto-refresh); all auth calls live in `AuthProvider` only; `USE_SUPABASE_AUTH = true`
+- Password reset = TODO
 - Stripe test cards: `4242 4242 4242 4242` (success), `4000 0000 0000 0002` (decline)
 
 ## Testing Rules

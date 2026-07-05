@@ -6,7 +6,7 @@
 
 ## CURRENT PHASE
 
-Phase 5 — Supabase Migration · **Step 10a complete** (marketplace listings).
+Phase 5 — Supabase Migration · **Step 10b complete** (real Supabase Auth).
 (Phases 1–4 complete; see COMPLETED below for their detail.)
 
 ---
@@ -68,6 +68,40 @@ Step 10a notes (marketplace listings — persistence only):
   layout, so it stays hydrated across client navigation. A hydration-aware guard
   is a candidate follow-up (out of scope for persistence-only).
 
+Step 10b notes (real Supabase Auth — identity, NOT authorization):
+- **Auth is now REAL** (email/password via Supabase GoTrue). **Authorization is
+  NOT** — RLS still OFF, repos still keyed by EMAIL (not auth.uid), anon key can
+  read/write any row. Do NOT claim user data is protected. This step changed the
+  IDENTITY SOURCE only; every repo is architecturally unchanged.
+- **AuthProvider** rewritten: `getSession()` bootstrap + `onAuthStateChange`
+  subscription; Supabase OWNS session persistence (its own localStorage key,
+  auto-refresh) — all manual `test_auth_v1` localStorage handling REMOVED
+  (`lib/auth-storage.ts` DELETED, fake auth fully gone). Same context API plus
+  additive `login()` / `register()`. `user` = `AppUser { id (auth.uid), email,
+  createdAt, role }` — same `{email, createdAt, role}` shape consumers already
+  used, so downstream changes were near-zero. Flag `USE_SUPABASE_AUTH = true`
+  (false = auth disabled, NOT fake — fake path deleted).
+- **All Supabase Auth calls live in AuthProvider only** (`signInWithPassword`,
+  `signUp`, `signOut`); AuthModal routes through an `onSubmit` prop.
+- **Merchant role = EMAIL ALLOWLIST** (`email === merchant@test.com → merchant`),
+  derived on every session restore → persists through refresh for free. UI role
+  only, NOT a security boundary until RLS.
+- **Identity → repos UNCHANGED:** only user-scoped repo is purchases;
+  `OwnershipProvider` still hydrates on `[user.email]` and disposes on logout —
+  it reads `user.email` from the (unchanged-shape) context, so it needed ZERO
+  edits. Epoch guard still discards stale hydrates on user switch (no leak).
+  Service requests / merchant products / certificates / events / listings are
+  GLOBAL and untouched by login/logout.
+- **Config (live-verified):** email/password provider only; **email confirmation
+  DISABLED in dashboard** (Auth → Providers → Email → "Confirm email" off) so
+  signup returns an instant session. Code is defensive if it's ever re-enabled
+  (falls back to sign-in, else shows a confirm-your-email message).
+- **Demo merchant pre-created** in Supabase Auth: `merchant@test.com` /
+  `merchant123` (email confirmed). Change the password in the dashboard if
+  desired. Customers self-register in the normal flow.
+- Verified end-to-end against live Supabase: signup→instant session, signin,
+  merchant login→merchant role, admin cleanup of the throwaway test user.
+
 Step 9 notes: service requests are GLOBAL, not user-scoped — the table has no
 owner/email column and `/merchant` reads every request via
 `getAllServiceRequestsEntry()`; the customer view (`/collection`) is a
@@ -92,8 +126,11 @@ and no longer manually emit `service-requests-changed` (the repo emits on change
 
 ### Auth
 
-Still **fake** (email-based session in `lib/auth-storage.ts`, anon key, no JWT).
-Real Supabase Auth + RLS is pending (end of Phase 5).
+**REAL authentication** (Supabase GoTrue email/password), as of Step 10b — see
+the Step 10b notes above. Authentication ✅, **authorization ❌** (RLS still OFF,
+repos still email-keyed, anon key unrestricted). Session owned by Supabase (no
+manual localStorage). Merchant role = email allowlist. RLS + auth.uid scoping is
+the remaining Phase 5 work.
 
 ### Standing verification dependencies (carry-over, re-check each deploy)
 
@@ -128,10 +165,14 @@ Real Supabase Auth + RLS is pending (end of Phase 5).
 1. ~~**Step 9 — Service requests → Supabase**~~ ✅ done
 2. ~~**Step 10a — Marketplace listings → Supabase**~~ ✅ done (listings persisted;
    bids still session)
-3. **Step 10b — Marketplace bids → Supabase** (`marketplace_bids`) — removes the
-   session-only bid overlay; reduce MarketplaceContext to lifecycle-only
-4. **Supabase Auth + RLS** — real identities; flip email scoping into an enforced
-   security boundary; enable per-user/per-designer row policies (multi-tenant groundwork)
+3. ~~**Step 10b — Replace fake auth with Supabase Auth**~~ ✅ done (real
+   email/password identity; authorization still deferred to RLS)
+4. **Marketplace bids → Supabase** (`marketplace_bids`) — removes the session-only
+   bid overlay; reduce MarketplaceContext to lifecycle-only
+5. **RLS + auth.uid scoping** — migrate repos off email onto verified auth.uid;
+   flip email scoping into an enforced security boundary; per-user/per-designer
+   row policies (multi-tenant groundwork). Auth identity is now real (done);
+   this is the authorization half.
 
 ---
 

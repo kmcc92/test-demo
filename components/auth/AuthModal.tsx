@@ -8,7 +8,14 @@ interface AuthModalProps {
   open: boolean;
   initialTab: "login" | "signup";
   onClose: () => void;
-  onSuccess: (email: string) => void;
+  // Real credential submit — routed through AuthProvider (Supabase Auth). No
+  // component calls Supabase Auth directly. Resolves with a friendly error
+  // string, or null on success (the provider then closes this modal).
+  onSubmit: (
+    tab: "login" | "signup",
+    email: string,
+    password: string
+  ) => Promise<{ error: string | null }>;
 }
 
 function isValidEmail(value: string): boolean {
@@ -49,7 +56,7 @@ const LABEL: React.CSSProperties = {
   marginBottom: "6px",
 };
 
-export default function AuthModal({ open, initialTab, onClose, onSuccess }: AuthModalProps) {
+export default function AuthModal({ open, initialTab, onClose, onSubmit }: AuthModalProps) {
   const reduced = useReducedMotion();
   const [tab, setTab] = useState<"login" | "signup">(initialTab);
   const [email, setEmail] = useState("");
@@ -79,7 +86,7 @@ export default function AuthModal({ open, initialTab, onClose, onSuccess }: Auth
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed) { setError("Email is required."); return; }
@@ -88,10 +95,11 @@ export default function AuthModal({ open, initialTab, onClose, onSuccess }: Auth
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setError("");
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess(trimmed.toLowerCase());
-    }, 700);
+    const { error: authError } = await onSubmit(tab, trimmed.toLowerCase(), password);
+    setLoading(false);
+    // On success the provider closes this modal (open → false); on failure show
+    // the message and keep the form open.
+    if (authError) setError(authError);
   }
 
   return (
