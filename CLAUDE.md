@@ -27,8 +27,9 @@ Get-Process node | Stop-Process -Force
 **Phase 5 — Supabase Migration (in progress)**
 - Steps 1–9 ✅ (certificates, status, events, purchases, merchant products, /library, /collection, service requests)
 - Step 10a ✅ Marketplace **listings** persisted (bids still session)
-- Step 10b ✅ **Real Supabase Auth** (email/password identity; authz still deferred to RLS)
-- **NEXT ⏳ Marketplace bids (`marketplace_bids`)**, then RLS + auth.uid scoping
+- Step 10b ✅ **Real Supabase Auth** (email/password identity)
+- Step 10c ✅ **RLS enabled** (real authorization; run `supabase/rls_policies.sql`)
+- **NEXT ⏳ Marketplace bids (`marketplace_bids`)**, then email→auth.uid repo scoping
 
 ## Supabase Setup
 - **Region:** ca-central-1 (Canada), free tier
@@ -36,7 +37,7 @@ Get-Process node | Stop-Process -Force
 - **URL format:** bare `https://<ref>.supabase.co` (not dashboard host, not `/rest/v1/`)
 - **Tables:** certificates, certificate_status, certificate_events, service_requests, purchases, merchant_products, marketplace_listings, marketplace_bids
 - **RPC:** `transfer_ownership` (atomic, SECURITY DEFINER, idempotent on payment_ref)
-- **RLS:** OFF until auth migration
+- **RLS:** ON (Step 10c) — policies in `supabase/rls_policies.sql` (run in SQL Editor). Global tables = public read; purchases = owner-scoped; service_requests = authenticated-read-all (no owner column, documented gap); merchant_products = merchant_id-scoped writes; `transfer_ownership` + `archive_public()` are SECURITY DEFINER (bypass RLS)
 - **Realtime:** must enable per-table in Dashboard → Database → Replication
 - **Flags (all true):** USE_SUPABASE_CERTIFICATES, USE_SUPABASE_STATUS, USE_SUPABASE_EVENTS, USE_SUPABASE_PURCHASES, USE_SUPABASE_MERCHANT_PRODUCTS, USE_SUPABASE_SERVICE_REQUESTS, USE_SUPABASE_MARKETPLACE; global USE_SUPABASE stays false
 
@@ -56,7 +57,7 @@ Get-Process node | Stop-Process -Force
 - Certificate identity ≠ ownership ≠ status annotations — kept distinct
 - Public surfaces (`/library`, `/verify`) NEVER expose: email, wallet_address, tx_hash
 - Price IS public (core value prop)
-- All privacy is UX-only until RLS + real auth (documented in code)
+- **Enforced by RLS (Step 10c):** purchases owner-scoped; `/library` reads the `archive_public()` SECURITY DEFINER fn (public columns only). Residual gap: service_requests is authenticated-read-all (no owner column) — documented
 
 ## Auth (REAL — Supabase GoTrue email/password, as of Step 10b)
 - Authentication is REAL; **authorization is NOT** (RLS off, repos email-keyed, anon key unrestricted — do not claim user data is protected)

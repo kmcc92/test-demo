@@ -1,11 +1,13 @@
 // Supabase-backed PURCHASES repository — the first PRIVATE, per-user domain.
 //
-// SECURITY REALITY (do not overclaim): auth is still fake (email-only, anon
-// key, no JWT). The email-based Realtime/query filtering below is UX-ONLY — it
-// scopes what THIS UI sees, but it is NOT a security boundary: a client could
-// still query another user's rows via the anon key. TRUE protection requires
-// RLS keyed on a verified identity (auth.jwt() email), which needs real Supabase
-// Auth (later in Phase 5). Until then, purchase data is NOT access-secured.
+// SECURITY (Step 10b Auth + Step 10c RLS): auth is REAL (Supabase JWT) and
+// purchases is RLS-PROTECTED. Server-side policies scope SELECT/INSERT/DELETE to
+// the caller's own rows (lower(email) = auth.jwt()->>'email'); cross-user
+// transfer is done by the SECURITY DEFINER transfer_ownership RPC, which bypasses
+// RLS. The email-based Realtime/query filtering below is now DEFENSE-IN-DEPTH on
+// top of RLS (kept intentionally) — it scopes what this UI fetches; the database
+// enforces the actual access boundary regardless of the client. See
+// supabase/rls_policies.sql.
 //
 // This module is the ONLY place the purchase snapshot exists. It privately owns:
 //   - snapshot: PurchaseRecord[]  — the CURRENT USER ONLY (single array, never
@@ -15,7 +17,7 @@
 //   - seenIds: Set<id> dedupe (PK = id, which is the payment reference)
 //   - ownedProductIds: Set for O(1) isOwned
 //   - version: monotonic, bumped only on observable change
-//   - realtime channel (filtered to the user's email — UX-only)
+//   - realtime channel (filtered to the user's email — defense-in-depth over RLS)
 //   - epoch: bumped on every hydrate AND every write, to (a) discard a stale
 //     hydrate that resolves after a user switch, and (b) prevent an in-flight
 //     pre-write hydrate from clobbering a just-persisted local write.
@@ -143,8 +145,9 @@ function removeById(id: string): void {
 
 function subscribeRealtime(email: string): void {
   if (!client) return;
-  // Realtime filtered to the user's rows. UX-ONLY — NOT a security boundary
-  // (see the file header). The snapshotEmail guard drops any payload that
+  // Realtime filtered to the user's rows. This is defense-in-depth on top of
+  // RLS (Realtime also respects the SELECT policy, so the server only streams the
+  // caller's own rows regardless). The snapshotEmail guard drops any payload that
   // arrives after a user switch.
   realtimeChannel = client
     .channel(`purchases-${email}`)

@@ -15,9 +15,10 @@ import { useOwnership } from "@/hooks/useOwnership";
 // purchase with a certificate, deduped to the current owner, read GLOBALLY via
 // the ArchiveEntry view model. Owner identity is NEVER shown (anonymous
 // "verified collector"); an "owned by you" badge is computed CLIENT-SIDE from
-// the current user's own scoped snapshot. Privacy is UX-only until RLS + real
-// auth (see archiveRepo header). This is NOT the merchant catalog and NOT the
-// user's private collection (that is /collection).
+// the current user's own scoped snapshot. Owner PII is protected by RLS: the
+// archive reads the SECURITY DEFINER archive_public() RPC (public columns only),
+// and purchases itself is owner-scoped (see archiveRepo header). This is NOT the
+// merchant catalog and NOT the user's private collection (that is /collection).
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {

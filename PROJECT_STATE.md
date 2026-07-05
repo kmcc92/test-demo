@@ -6,8 +6,10 @@
 
 ## CURRENT PHASE
 
-Phase 5 — Supabase Migration · **Step 10b complete** (real Supabase Auth).
+Phase 5 — Supabase Migration · **Step 10c complete** (Row-Level Security).
 (Phases 1–4 complete; see COMPLETED below for their detail.)
+⚠ Step 10c requires running `supabase/rls_policies.sql` in the Supabase SQL Editor
+(RLS is a DB-side change; the app code cannot enable it). See Step 10c notes.
 
 ---
 
@@ -102,6 +104,41 @@ Step 10b notes (real Supabase Auth — identity, NOT authorization):
 - Verified end-to-end against live Supabase: signup→instant session, signin,
   merchant login→merchant role, admin cleanup of the throwaway test user.
 
+Step 10c notes (Row-Level Security — the authorization boundary):
+- **DB-side change:** all policies + `ALTER TABLE ... ENABLE RLS` + the
+  `archive_public()` function are in **`supabase/rls_policies.sql`** — run it in
+  the Supabase SQL Editor (idempotent, re-runnable). The app cannot enable RLS.
+- **Model:** one anon-key client carries the user JWT → policies scope by
+  `auth.jwt()->>'email'`. Global tables (certificates, certificate_status,
+  certificate_events, merchant_products, marketplace_listings) = **public
+  (anon+auth) SELECT** so the logged-out storefront + `/verify` still work.
+  purchases = **owner-scoped** SELECT/INSERT/DELETE. merchant_products = writes
+  scoped to `merchant_id = auth email` (real merchant gate). marketplace_listings
+  = INSERT by seller, **UPDATE open to any authenticated** (buyer marks sold, any
+  viewer settles — not the seller). certificate_status/events writes =
+  authenticated. service_requests = **authenticated read/write ALL** (see gap).
+- **`transfer_ownership` (SECURITY DEFINER)** bypasses RLS → cross-user auction
+  transfer keeps working (user verified prosecdef=true in dashboard).
+- **`/library` fix (required companion):** the public archive reads ALL users'
+  sold pieces, which owner-scoped purchases RLS would block. So `archiveRepo` now
+  reads the new **`archive_public()` SECURITY DEFINER function** (public columns
+  only — never email/wallet/tx_hash) instead of `purchases` directly. This is the
+  only repo code change; snapshot/lifecycle/version all unchanged.
+- **Deploy coupling:** the SQL and this code deploy are a matched pair for
+  `/library` only (the function must exist for the rpc call; owner-scoped
+  purchases would otherwise starve the old global read). The scripted demo path
+  (home/exclusive/auctions/verify/checkout) is RLS-safe regardless of order. Run
+  the SQL and deploy back-to-back.
+- **ACCEPTED GAP — service_requests NOT per-user isolated:** no owner column +
+  merchant-reads-all design → any authenticated user can query all requests via
+  the API. Closing it needs an owner column + server-visible role (future step).
+- Client-side email filters KEPT everywhere as defense-in-depth. "UX-only
+  security" comments updated to "RLS-enforced" across the repos. No repository
+  architecture / snapshot / provider changes.
+- **Casualty:** the standalone `npm run test:supabase` script uses the anon key
+  with no login → its register/delete now hit RLS. Run it authenticated (or with
+  a service-role client) post-RLS. Not part of `npm test`.
+
 Step 9 notes: service requests are GLOBAL, not user-scoped — the table has no
 owner/email column and `/merchant` reads every request via
 `getAllServiceRequestsEntry()`; the customer view (`/collection`) is a
@@ -124,13 +161,15 @@ and no longer manually emit `service-requests-changed` (the repo emits on change
   `lib/certificate-events.ts`, `lib/purchase-storage.ts`, `lib/merchant-storage.ts`,
   `lib/service-requests.ts`.
 
-### Auth
+### Auth & Authorization
 
-**REAL authentication** (Supabase GoTrue email/password), as of Step 10b — see
-the Step 10b notes above. Authentication ✅, **authorization ❌** (RLS still OFF,
-repos still email-keyed, anon key unrestricted). Session owned by Supabase (no
-manual localStorage). Merchant role = email allowlist. RLS + auth.uid scoping is
-the remaining Phase 5 work.
+**REAL authentication** (Supabase GoTrue email/password, Step 10b) **+ REAL
+authorization** (RLS, Step 10c). The single anon-key client carries the user JWT,
+so RLS policies scope by `auth.jwt()->>'email'`. Session owned by Supabase.
+Merchant role = email allowlist (also enforced server-side via `merchant_id =
+auth email` on merchant_products). Policies live in `supabase/rls_policies.sql`.
+Remaining: migrate repo scoping from email → `auth.uid` (canonical id; enables
+per-designer multi-tenant policies) and close the service_requests isolation gap.
 
 ### Standing verification dependencies (carry-over, re-check each deploy)
 
@@ -141,17 +180,20 @@ the remaining Phase 5 work.
   not instantly. **Step 10a TODO (manual): enable Realtime for
   `marketplace_listings`** in Dashboard → Database → Replication before
   cross-device testing. (Step 9's `service_requests` toggle likewise.)
-- **Service requests are NOT access-secured** (same as purchases): no owner
-  column, RLS off, anon key — any client can read/write any request. The
-  customer/merchant split is UX-only until RLS + real auth. Also: `certificate_id`
-  is a FK→certificates, so a request for an unregistered cert fails the insert
+- **Purchases ARE access-secured (Step 10c RLS):** SELECT/INSERT/DELETE are
+  owner-scoped server-side (`email = auth.jwt()->>'email'`). The client-side email
+  filter is now defense-in-depth. Cross-user transfer via the SECURITY DEFINER
+  `transfer_ownership` RPC (bypasses RLS).
+- **Service requests are AUTHENTICATED-scoped only (documented gap):** RLS
+  requires login to read/write, but there's no owner column and the merchant
+  reads all → any authenticated user can query all requests. NOT per-user
+  isolated until a future owner-column + role step. Also: `certificate_id` is a
+  FK→certificates, so a request for an unregistered cert fails the insert
   (persist-first surfaces it as a caught error, no phantom local state).
-- **Purchases are NOT access-secured** until RLS + real auth land. The email
-  Realtime/query filter is **UX-only** — a client could still query another
-  user's rows via the anon key. Do not treat email scoping as a security boundary.
-- **`transfer_ownership` RPC signature is unverified in code** — built against the
-  expected param names; a mismatch fails auction settlement with a caught toast
-  (regular checkout is unaffected). Verify against the live function.
+- **`transfer_ownership` is SECURITY DEFINER** (user-verified in dashboard,
+  Step 10c) → bypasses purchases RLS so cross-user transfer works. Param-name
+  signature still built against expectations; a mismatch fails auction settlement
+  with a caught toast (regular checkout unaffected).
 - **No `updated_at` on `merchant_products`** → catalog edits are last-write-wins
   (safe at single-merchant scale; add `updated_at` + optimistic concurrency for
   Phase 7 multi-designer).
@@ -166,13 +208,15 @@ the remaining Phase 5 work.
 2. ~~**Step 10a — Marketplace listings → Supabase**~~ ✅ done (listings persisted;
    bids still session)
 3. ~~**Step 10b — Replace fake auth with Supabase Auth**~~ ✅ done (real
-   email/password identity; authorization still deferred to RLS)
-4. **Marketplace bids → Supabase** (`marketplace_bids`) — removes the session-only
-   bid overlay; reduce MarketplaceContext to lifecycle-only
-5. **RLS + auth.uid scoping** — migrate repos off email onto verified auth.uid;
-   flip email scoping into an enforced security boundary; per-user/per-designer
-   row policies (multi-tenant groundwork). Auth identity is now real (done);
-   this is the authorization half.
+   email/password identity)
+4. ~~**Step 10c — Enable RLS**~~ ✅ done (real authorization; run
+   `supabase/rls_policies.sql`). Residual: service_requests isolation gap.
+5. **Marketplace bids → Supabase** (`marketplace_bids`) — removes the session-only
+   bid overlay; reduce MarketplaceContext to lifecycle-only; finalize the
+   provisional bids RLS policies
+6. **email → auth.uid repo scoping** — migrate repos off email onto verified
+   auth.uid; close the service_requests isolation gap (owner column +
+   server-visible role); per-designer multi-tenant policies
 
 ---
 

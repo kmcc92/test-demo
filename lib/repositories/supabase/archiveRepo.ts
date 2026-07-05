@@ -3,12 +3,13 @@
 // (lib/repositories/supabase/purchaseRepo.ts): it must NEVER merge into or read
 // from that snapshot, and consumers see only the ArchiveEntry view model.
 //
-// PRIVACY (mandatory, do not overclaim): selecting only public columns below
-// does NOT secure the data. Under fake auth + the anon key, any client can query
-// `purchases?select=*` directly and read email/wallet/tx_hash. This archive's
-// field-hiding is UX-ONLY until RLS + real auth + a dedicated public provenance
-// view (Phase 6). The ArchiveEntry boundary + this repo make that swap painless:
-// only this file changes when the read moves to the public view.
+// PRIVACY (Step 10c RLS): purchases is now RLS-protected — direct
+// `purchases?select=*` returns only the caller's OWN rows (email/wallet/tx_hash
+// are no longer world-readable). Because the archive must read ACROSS ALL users,
+// it now reads through the SECURITY DEFINER function `archive_public()` (see
+// supabase/rls_policies.sql), which bypasses purchases RLS but projects ONLY the
+// public columns — email/wallet/tx_hash are never selectable. This is the
+// "dedicated public provenance view" the ArchiveEntry boundary was built for.
 //
 // PHASE 6 EXPANSION: ArchiveEntry insulates /library so the ledger work can add
 // originalSale + latestSale + full price history[] with no page change.
@@ -39,10 +40,8 @@ export interface ArchiveEntry {
   status: CertificateStatus;
 }
 
-// Only public columns are selected — NEVER email / wallet_address / tx_hash.
-const COLUMNS =
-  "certificate_id, product_name, product_image, product_description, price, purchased_at";
-
+// The archive_public() RPC returns ONLY these public columns — NEVER email /
+// wallet_address / tx_hash (enforced server-side by the function definition).
 type ArchiveRow = {
   certificate_id: string | null;
   product_name: string | null;
@@ -78,12 +77,10 @@ async function doHydrate(): Promise<() => void> {
   await supabaseCertificateRegistryRepo.hydrate();
   await supabaseCertificateStatusRepo.hydrate();
 
-  // Global read — every authenticated sold piece. PUBLIC COLUMNS ONLY.
-  const { data, error } = await supabase
-    .from("purchases")
-    .select(COLUMNS)
-    .not("certificate_id", "is", null)
-    .order("purchased_at", { ascending: false });
+  // Global read — every certificated sold piece, across ALL users. Reads through
+  // the SECURITY DEFINER archive_public() RPC (bypasses purchases RLS, public
+  // columns only). Rows arrive ordered purchased_at DESC (see the function).
+  const { data, error } = await supabase.rpc("archive_public");
   if (error) throw error;
 
   // Dedupe to ONE entry per certificate_id = the CURRENT owner (latest sale).

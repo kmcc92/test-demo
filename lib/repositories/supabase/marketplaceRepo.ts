@@ -15,9 +15,12 @@
 // snapshot, lifecycle provider, hydrate-once, realtime keeps it fresh). NO
 // user-scoping, NO epoch guard, NO privacy machinery.
 //
-// SECURITY REALITY (do not overclaim): auth is fake (email-only, anon key) and
-// RLS is OFF — every client can read/write every listing via the anon key. Any
-// seller/visibility separation is UX-only until RLS + real Supabase Auth.
+// SECURITY (Step 10b Auth + Step 10c RLS): auth is REAL and RLS is ON. Listings
+// are PUBLIC read (the storefront is browsable logged-out). INSERT is scoped
+// server-side to the seller (lower(seller_email) = auth email). UPDATE is open to
+// any authenticated user BY DESIGN — the status lifecycle (active→ended/sold) is
+// finalized by the winning BUYER (mark sold) and by any VIEWER (settle→ended on
+// expiry), not the seller. See supabase/rls_policies.sql.
 //
 // Real schema (introspected): marketplace_listings(id text PK, product_id text,
 // product_name text, certificate_id text FK→certificates.certificate_id, image

@@ -16,15 +16,16 @@ import type { Product } from "@/lib/mock-data";
 import AuthModal from "@/components/auth/AuthModal";
 import CheckoutModal from "@/components/checkout/CheckoutModal";
 
-// STEP 10b — REAL AUTHENTICATION (Supabase Auth), NOT authorization.
+// STEP 10b — REAL AUTHENTICATION (Supabase Auth). Step 10c added AUTHORIZATION.
 //
-// AUTH IS NOW REAL: email/password credentials are verified by Supabase GoTrue.
-// AUTHORIZATION IS NOT: RLS is still OFF, repositories are still keyed by email
-// (not auth.uid), and the anon key can read/write any row. Do NOT claim user data
-// is protected — enforcement waits for the RLS step. This migration changes the
-// IDENTITY SOURCE only; every repository stays architecturally unchanged and
-// still receives an EMAIL (canonical auth.uid is exposed as user.id but not yet
-// used for scoping).
+// AUTH IS REAL: email/password credentials are verified by Supabase GoTrue.
+// AUTHORIZATION IS NOW ENFORCED by RLS (Step 10c): the app's single anon-key
+// client carries the signed-in user's JWT, so server-side policies scope access
+// by auth.jwt()->>'email' (see supabase/rls_policies.sql). Repositories still
+// receive an EMAIL and are architecturally unchanged; the canonical auth.uid is
+// exposed as user.id but repos are not yet keyed on it (email→uid migration is a
+// later step). Residual gap: service_requests is authenticated-read-all (no owner
+// column) — documented in its repo header.
 //
 // Feature flag parity with the domain migrations. When false, auth is DISABLED
 // (no user, no fake fallback — the fake localStorage auth has been removed).

@@ -7,11 +7,14 @@
 // lifecycle provider, hydrate-once, unfiltered Realtime keeps it fresh. NO
 // user-scoping, NO epoch guard, NO privacy machinery (unlike purchases).
 //
-// SECURITY REALITY (do not overclaim): auth is still fake (email-only, anon key,
-// no JWT) and RLS is OFF. There is no access boundary here at all — every client
-// can read/write every request via the anon key. True protection needs RLS on a
-// verified identity, which requires real Supabase Auth (later in Phase 5). Until
-// then, any privacy is UX-only.
+// SECURITY (Step 10b Auth + Step 10c RLS): auth is REAL and RLS is ON, but this
+// domain is only partially isolated. RLS scopes service_requests to AUTHENTICATED
+// users (anon is denied) — so login is required to read or write. However, the
+// table has NO owner column and the merchant reads ALL requests (global design),
+// so RLS CANNOT restrict a row to a single user: any authenticated user can query
+// every request via the API. This is an ACCEPTED, DOCUMENTED limitation — true
+// per-user isolation needs an owner column + a server-visible merchant role (a
+// future step). See supabase/rls_policies.sql.
 //
 // CRUD domain (status mutates through a lifecycle: pending → quoted → accepted →
 // paid → completed | denied | cancelled), so the dedup strategy is Map
