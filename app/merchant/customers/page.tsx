@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getMerchantProducts } from "@/lib/merchant-storage";
+import { getMerchantProductsEntry, merchantProductsVersion } from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice, truncateEmail } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
@@ -12,11 +13,15 @@ const BORDER = "rgba(0,0,0,0.08)";
 const BORDER_SOLID = "#e0e0e0";
 
 export default function MerchantCustomersPage() {
-  const [products, setProducts] = useState(() => getMerchantProducts());
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
+  const [products, setProducts] = useState(() => getMerchantProductsEntry());
 
   useEffect(() => {
-    setProducts(getMerchantProducts());
-  }, []);
+    setProducts(getMerchantProductsEntry());
+  }, [productsVersion]);
 
   type CustomerEntry = {
     email: string; productTypes: ("shop" | "exclusive")[];

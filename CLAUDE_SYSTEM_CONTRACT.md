@@ -209,13 +209,41 @@ Framework: Vitest (`npm test`). Test files live in `tests/`.
 | 4 | Polish & harden | In progress |
 | 4.5 | Domain invariant tests (Vitest) | **In progress** |
 | 5 | Supabase — real auth, persistence, multi-device | Next |
-| 6 | Blockchain — Polygon certificate minting | Planned |
+| 6 | Blockchain — Polygon certificate minting + public anonymous ownership verification | Planned |
 | 7 | Multi-designer — accounts, Stripe Connect, storefronts | Planned |
 | 8 | Designer service network — refurbish/replace/resize | Planned |
 | 9 | Fashion competitions | Planned |
 | 10 | Live auctions + stream integration | Planned |
 | 11 | Designer website integration (API/widgets) | Planned |
 | 12 | Production launch — Quebec Law 25, GST/QST, French, Stripe live | Planned |
+
+### Phase 6 deliverable — PUBLIC ANONYMOUS OWNERSHIP VERIFICATION
+Goal: anyone who scans an NFC chip (no login) sees the verified owner of the item on `/verify`.
+
+**Dependency chain (must land in this order):**
+real auth (Supabase Auth) → verified ownership identities → blockchain-backed ownership proof
+(or equivalent cryptographic proof) → public verification surface (a DEDICATED public view/API
+exposing only approved fields, with its own RLS).
+
+**Architecture note:** do NOT expose the private `purchases` table via a public-read RLS policy.
+Ownership data (purchases/users) stays private. Public verification reads from a separate public
+profile/identity layer + a public verification view/API that surfaces only approved, non-private fields.
+
+- **Shows:** authenticated status; "owned by a verified collector"; a CHOSEN public display name/handle
+  (never the login email); provenance chain (designer, sale date, current owner); cryptographic proof link.
+- **Must NEVER show:** raw email addresses or any private identity. Public display uses an opt-in handle only.
+- **Opt-in:** public profile is explicitly opt-in. A user may remain anonymous while still showing
+  "Owned by a verified collector," OR display a public handle, OR (later) a verified brand/store profile —
+  without changing the verification system.
+- **Why it waits:** until real auth + cryptographic ownership proof, "verified owner" is not actually
+  verified (fake auth = anyone can claim any email), so exposing owner info would leak private data and
+  display unverifiable claims. The word "verified" must be true before this ships.
+
+### Phase 5 interim — anonymous /verify copy
+Once real auth lands (Phase 5), improve the anonymous `/verify` state copy — without exposing identity —
+to show: ✅ Genuine registered certificate · ✅ Currently owned by a verified collector, plus non-private
+fields (product name, designer, registration date). This replaces the current ambiguous "authenticated
+but not purchased" for anonymous viewers.
 
 ---
 
@@ -226,6 +254,11 @@ Framework: Vitest (`npm test`). Test files live in `tests/`.
 - Marketplace listings are session-only — lost on page refresh
 - Product images break after deletion — no snapshot taken at purchase time
 - `getMockCertificate` fallback in `mock-verify.ts` remains until final cleanup after Phase 6
+- `/verify` currently shows "authenticated but not purchased" to anonymous viewers. This is correct
+  behavior (ownership is scoped to the logged-in user) but ambiguous UX. Public owner display is
+  intentionally deferred to Phase 6 — it is unsafe under fake auth and only meaningful once ownership is
+  cryptographically backed. When built, it reads from a dedicated public verification surface, NOT a
+  public-read policy on the private `purchases` table.
 
 ---
 

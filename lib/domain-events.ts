@@ -5,6 +5,7 @@ export type DomainEvent =
   | "certificate-events-changed"
   | "certificate-status-changed"
   | "certificates-changed"
+  | "merchant-products-changed"
   | "purchases-changed"
   | "auth-changed";
 
@@ -25,6 +26,7 @@ export function onDomainEvent(
     test_service_requests_v1: "service-requests-changed",
     test_certificate_events_v1: "certificate-events-changed",
     test_certificate_status_v1: "certificate-status-changed",
+    test_merchant_products_v1: "merchant-products-changed",
     test_purchases_v1: "purchases-changed",
   };
 

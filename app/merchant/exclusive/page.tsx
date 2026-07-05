@@ -3,17 +3,18 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
-  getMerchantProductsByType,
-  addMerchantProduct,
-  updateMerchantProduct,
-  deleteMerchantProduct,
   generateRandomString,
-  isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
 import { getCertificates, type Certificate } from "@/lib/certificate-storage";
 import {
   registerCertificateEntry,
+  createMerchantProductEntry,
+  updateMerchantProductEntry,
+  deleteMerchantProductEntry,
+  getMerchantProductsByTypeEntry,
+  isCertificateIdTakenEntry,
+  merchantProductsVersion,
   getStatusRecordEntry,
   clearStatusEntry,
   certificateStatusVersion,
@@ -110,7 +111,7 @@ export default function MerchantExclusivePage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   function refresh() {
-    const list = getMerchantProductsByType("exclusive");
+    const list = getMerchantProductsByTypeEntry("exclusive");
     setProducts(list);
     setCertificates(getCertificates());
     const map: Record<string, CertificateStatusRecord | null> = {};
@@ -131,7 +132,11 @@ export default function MerchantExclusivePage() {
     "certificate-status-changed",
     () => certificateStatusVersion()
   );
-  useEffect(() => { refresh(); }, [statusVersion]);
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
+  useEffect(() => { refresh(); }, [statusVersion, productsVersion]);
 
   // Build cert lookup by certificate.id (not productId)
   const certById = useMemo(() => {
@@ -161,7 +166,7 @@ export default function MerchantExclusivePage() {
       next.certificateId = "Required";
     } else if (/\s/.test(trimmedCert)) {
       next.certificateId = "Cannot contain spaces";
-    } else if (isCertificateIdTaken(trimmedCert)) {
+    } else if (isCertificateIdTakenEntry(trimmedCert)) {
       next.certificateId = "This certificate ID is already in use";
     }
     setAddErrors(next);
@@ -202,7 +207,7 @@ export default function MerchantExclusivePage() {
       return;
     }
 
-    addMerchantProduct(product);
+    await createMerchantProductEntry(product);
 
     refresh();
     setSuccessMsg(`Exclusive piece added. Certificate: ${certificateId}`);
@@ -222,9 +227,9 @@ export default function MerchantExclusivePage() {
     setEditForm({ name: p.name, description: p.description, price: String(p.price), image: p.image });
   }
 
-  function saveEdit(id: string) {
+  async function saveEdit(id: string) {
     const parsedPrice = parseInt(editForm.price, 10);
-    updateMerchantProduct(id, {
+    await updateMerchantProductEntry(id, {
       name: editForm.name.trim(),
       description: editForm.description.trim(),
       price: Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : undefined,
@@ -236,8 +241,8 @@ export default function MerchantExclusivePage() {
 
   function cancelEdit() { setEditingId(null); }
 
-  function confirmDelete(id: string) {
-    deleteMerchantProduct(id);
+  async function confirmDelete(id: string) {
+    await deleteMerchantProductEntry(id);
     setConfirmDeleteId(null);
     refresh();
   }

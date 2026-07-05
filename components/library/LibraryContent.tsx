@@ -4,8 +4,14 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { type LibraryEntry, type SaleRecord, type ServiceRecord } from "@/lib/mock-data";
-import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
-import { merchantProductRepo, getStatusEntry, certificateStatusVersion } from "@/lib/repositories";
+import { type MerchantProduct } from "@/lib/merchant-storage";
+import {
+  getMerchantProductByIdEntry,
+  getMerchantProductsByTypeEntry,
+  merchantProductsVersion,
+  getStatusEntry,
+  certificateStatusVersion,
+} from "@/lib/repositories";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
 import { useOwnership } from "@/hooks/useOwnership";
@@ -17,7 +23,7 @@ import type { PurchaseRecord } from "@/lib/purchase-storage";
 // Falls back to undefined when productId is absent (library-only archive entries).
 function getSourceItem(productId: string | undefined) {
   if (!productId) return undefined;
-  const p = merchantProductRepo.getById(productId);
+  const p = getMerchantProductByIdEntry(productId);
   if (!p) return undefined;
   return { ...p, images: [p.image] };
 }
@@ -592,11 +598,15 @@ export default function LibraryContent() {
     "certificate-status-changed",
     () => certificateStatusVersion()
   );
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
 
   useEffect(() => {
-    setMerchantProducts(getMerchantProductsByType("exclusive"));
+    setMerchantProducts(getMerchantProductsByTypeEntry("exclusive"));
     setMounted(true);
-  }, []);
+  }, [productsVersion]);
 
   const merchantLibraryEntries = useMemo<LibraryEntry[]>(
     () =>

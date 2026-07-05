@@ -1,14 +1,12 @@
 "use client";
 
-// FLAG: merchant-products-changed domain event does not exist.
-// ShopClient uses a one-time mount read as fallback.
-// Wire merchant-products-changed in next pass to enable reactive updates.
-
 import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import type { Product } from "@/lib/mock-data";
-import { merchantProductRepo } from "@/lib/repositories";
+import type { MerchantProduct } from "@/lib/merchant-storage";
+import { getMerchantProductsByTypeEntry, merchantProductsVersion } from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import ProductCard from "./ProductCard";
 import ShopQuickView from "./ShopQuickView";
 
@@ -23,7 +21,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "newest",     label: "Newest First" },
 ];
 
-function mapToProduct(p: ReturnType<typeof merchantProductRepo.getAll>[number]): Product {
+function mapToProduct(p: MerchantProduct): Product {
   return {
     id: p.id,
     name: p.name,
@@ -46,9 +44,13 @@ export default function ShopClient() {
   const [selected, setSelected] = useState<Product | null>(null);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
   useEffect(() => {
-    setAllProducts(merchantProductRepo.getByType("shop").map(mapToProduct));
-  }, []);
+    setAllProducts(getMerchantProductsByTypeEntry("shop").map(mapToProduct));
+  }, [productsVersion]);
 
   const q = search.trim().toLowerCase();
 

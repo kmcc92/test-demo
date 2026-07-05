@@ -12,7 +12,22 @@ import {
   type PurchaseInsert,
   type TransferParams,
 } from "./supabase/purchaseRepo";
+import {
+  supabaseMerchantProductRepo,
+  type MerchantProductUpdate,
+} from "./supabase/merchantProductRepo";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
+import {
+  type MerchantProduct,
+  getMerchantProducts,
+  getMerchantProductsByType,
+  addMerchantProduct,
+  updateMerchantProduct,
+  deleteMerchantProduct,
+  isCertificateIdTaken,
+} from "@/lib/merchant-storage";
+
+export type { MerchantProductUpdate } from "./supabase/merchantProductRepo";
 
 export type { PurchaseInsert, TransferParams } from "./supabase/purchaseRepo";
 import { getCertificateFromRegistry, registerCertificate } from "@/lib/certificate-registry";
@@ -42,6 +57,7 @@ const USE_SUPABASE_CERTIFICATES = true;
 const USE_SUPABASE_STATUS = true;
 const USE_SUPABASE_EVENTS = true;
 const USE_SUPABASE_PURCHASES = true;
+const USE_SUPABASE_MERCHANT_PRODUCTS = true;
 
 export const purchaseRepo = USE_SUPABASE
   ? localPurchaseRepo // replace with supabasePurchaseRepo later
@@ -318,4 +334,86 @@ export async function removeOwnershipEntry(
 // Atomic cross-user transfer via Postgres RPC (never two client writes).
 export async function transferOwnershipEntry(params: TransferParams): Promise<void> {
   if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.transferOwnership(params);
+}
+
+// ---- Merchant products (global public catalog): backend-hiding accessors ----
+//
+// The sole visibility gate (invariant #6): ALL catalog consumers read through
+// these accessors; no component filters snapshot contents directly.
+
+export function getMerchantProductsEntry(): MerchantProduct[] {
+  return USE_SUPABASE_MERCHANT_PRODUCTS
+    ? supabaseMerchantProductRepo.getAll()
+    : getMerchantProducts();
+}
+
+export function getMerchantProductsByTypeEntry(
+  type: "shop" | "exclusive"
+): MerchantProduct[] {
+  return USE_SUPABASE_MERCHANT_PRODUCTS
+    ? supabaseMerchantProductRepo.getByType(type)
+    : getMerchantProductsByType(type);
+}
+
+export function getMerchantProductByIdEntry(id: string): MerchantProduct | null {
+  return USE_SUPABASE_MERCHANT_PRODUCTS
+    ? supabaseMerchantProductRepo.getById(id)
+    : getMerchantProducts().find((p) => p.id === id) ?? null;
+}
+
+export function isCertificateIdTakenEntry(
+  certificateId: string,
+  excludeProductId?: string
+): boolean {
+  return USE_SUPABASE_MERCHANT_PRODUCTS
+    ? supabaseMerchantProductRepo.isCertificateIdTaken(certificateId, excludeProductId)
+    : isCertificateIdTaken(certificateId, excludeProductId);
+}
+
+export function merchantProductsVersion(): number {
+  return USE_SUPABASE_MERCHANT_PRODUCTS ? supabaseMerchantProductRepo.version() : 0;
+}
+
+export async function hydrateMerchantProducts(): Promise<() => void> {
+  return USE_SUPABASE_MERCHANT_PRODUCTS
+    ? supabaseMerchantProductRepo.hydrate()
+    : () => {};
+}
+
+export function disposeMerchantProducts(): void {
+  // localStorage path has no snapshot to dispose.
+}
+
+// Authoritative persist-first CRUD. create carries certificate_id verbatim (#1)
+// and is intentionally NON-transactional across cert + product (cert registers
+// first; an orphan cert on product-fail is acceptable per §3 drop scenario —
+// certificate identity may legitimately outlive a storefront listing; do NOT
+// "fix" this into a transaction).
+export async function createMerchantProductEntry(
+  product: MerchantProduct
+): Promise<void> {
+  if (USE_SUPABASE_MERCHANT_PRODUCTS) {
+    await supabaseMerchantProductRepo.create(product);
+    return;
+  }
+  addMerchantProduct(product);
+}
+
+export async function updateMerchantProductEntry(
+  id: string,
+  updates: MerchantProductUpdate
+): Promise<void> {
+  if (USE_SUPABASE_MERCHANT_PRODUCTS) {
+    await supabaseMerchantProductRepo.update(id, updates);
+    return;
+  }
+  updateMerchantProduct(id, updates);
+}
+
+export async function deleteMerchantProductEntry(id: string): Promise<void> {
+  if (USE_SUPABASE_MERCHANT_PRODUCTS) {
+    await supabaseMerchantProductRepo.delete(id);
+    return;
+  }
+  deleteMerchantProduct(id);
 }

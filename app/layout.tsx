@@ -11,6 +11,7 @@ import AuthProvider from "@/components/providers/AuthProvider";
 import OwnershipProvider from "@/components/providers/OwnershipProvider";
 import CertificateRegistryProvider from "@/components/providers/CertificateRegistryProvider";
 import CertificateAnnotationsProvider from "@/components/providers/CertificateAnnotationsProvider";
+import MerchantCatalogProvider from "@/components/providers/MerchantCatalogProvider";
 import MarketplaceProvider from "@/contexts/MarketplaceContext";
 
 const cormorant = Cormorant_Garamond({
@@ -60,6 +61,7 @@ export default async function RootLayout({
               <OwnershipProvider>
                 <CertificateRegistryProvider>
                   <CertificateAnnotationsProvider>
+                    <MerchantCatalogProvider>
                     <MarketplaceProvider>
                     <Navbar />
                     <PageTransition>
@@ -67,6 +69,7 @@ export default async function RootLayout({
                     </PageTransition>
                     <Footer />
                     </MarketplaceProvider>
+                    </MerchantCatalogProvider>
                   </CertificateAnnotationsProvider>
                 </CertificateRegistryProvider>
               </OwnershipProvider>

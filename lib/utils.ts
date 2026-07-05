@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { merchantProductRepo } from "@/lib/repositories";
+import { getMerchantProductByIdEntry } from "@/lib/repositories";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -38,7 +38,7 @@ export function formatTimestamp(iso: string) {
 }
 
 export function getProductImage(productId: string): string {
-  const product = merchantProductRepo.getById(productId);
+  const product = getMerchantProductByIdEntry(productId);
   if (product?.image) return product.image;
   return "";
 }

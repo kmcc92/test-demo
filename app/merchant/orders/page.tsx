@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getMerchantProducts } from "@/lib/merchant-storage";
+import { getMerchantProductsEntry, merchantProductsVersion } from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice, truncateEmail } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
@@ -20,12 +21,16 @@ const STATUS_COLORS: Record<"processing" | "shipped" | "delivered", { text: stri
 };
 
 export default function MerchantOrdersPage() {
-  const [products, setProducts] = useState(() => getMerchantProducts());
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
+  const [products, setProducts] = useState(() => getMerchantProductsEntry());
   const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
-    setProducts(getMerchantProducts());
-  }, []);
+    setProducts(getMerchantProductsEntry());
+  }, [productsVersion]);
 
   type OrderEntry = {
     orderId: string; productName: string; productType: "shop" | "exclusive";

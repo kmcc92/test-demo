@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import type { Product } from "@/lib/mock-data";
-import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
+import { type MerchantProduct } from "@/lib/merchant-storage";
+import { getMerchantProductsByTypeEntry, merchantProductsVersion } from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
 import AuthBadge from "@/components/ui/AuthBadge";
 import QuickViewDrawer from "./QuickViewDrawer";
@@ -42,9 +44,13 @@ export default function ExclusiveGrid({ products }: ExclusiveGridProps) {
   const { isListed, listings } = useMarketplace();
   const { step, initiatePurchase, confirm, dismiss } = usePurchaseFlow();
 
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
   useEffect(() => {
-    setMerchantRaw(getMerchantProductsByType("exclusive"));
-  }, []);
+    setMerchantRaw(getMerchantProductsByTypeEntry("exclusive"));
+  }, [productsVersion]);
 
   const merchantMapped = merchantRaw.map(mapMerchantExclusive);
 

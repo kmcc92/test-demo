@@ -4,10 +4,13 @@ import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   generateRandomString,
-  isCertificateIdTaken,
   type MerchantProduct,
 } from "@/lib/merchant-storage";
-import { merchantProductRepo, registerCertificateEntry } from "@/lib/repositories";
+import {
+  registerCertificateEntry,
+  createMerchantProductEntry,
+  isCertificateIdTakenEntry,
+} from "@/lib/repositories";
 
 interface AddProductFormProps {
   onSuccess?: () => void;
@@ -108,7 +111,7 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
         next.certificateId = "Required";
       } else if (/\s/.test(trimmed)) {
         next.certificateId = "Cannot contain spaces";
-      } else if (isCertificateIdTaken(trimmed)) {
+      } else if (isCertificateIdTakenEntry(trimmed)) {
         next.certificateId = "This certificate ID is already in use";
       }
     }
@@ -154,7 +157,7 @@ export default function AddProductForm({ onSuccess, lockedType }: AddProductForm
       }
     }
 
-    merchantProductRepo.upsert(product);
+    await createMerchantProductEntry(product);
 
     onSuccess?.();
     setSuccess(true);

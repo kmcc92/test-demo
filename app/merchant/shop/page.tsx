@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import AddProductForm from "@/components/merchant/AddProductForm";
+import { type MerchantProduct } from "@/lib/merchant-storage";
 import {
-  getMerchantProducts,
-  updateMerchantProduct,
-  deleteMerchantProduct,
-  type MerchantProduct,
-} from "@/lib/merchant-storage";
+  getMerchantProductsEntry,
+  updateMerchantProductEntry,
+  deleteMerchantProductEntry,
+  merchantProductsVersion,
+} from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { formatPrice } from "@/lib/utils";
 
 const GOLD = "#C9A84C";
@@ -58,12 +60,16 @@ export default function MerchantShopPage() {
   });
 
   function refresh() {
-    setProducts(getMerchantProducts());
+    setProducts(getMerchantProductsEntry());
   }
 
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
   useEffect(() => {
     refresh();
-  }, []);
+  }, [productsVersion]);
 
   function startEdit(p: MerchantProduct) {
     setEditingId(p.id);
@@ -76,9 +82,9 @@ export default function MerchantShopPage() {
     });
   }
 
-  function saveEdit(id: string) {
+  async function saveEdit(id: string) {
     const parsedPrice = parseInt(editForm.price, 10);
-    updateMerchantProduct(id, {
+    await updateMerchantProductEntry(id, {
       name: editForm.name.trim(),
       description: editForm.description.trim(),
       price: Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : undefined,
@@ -92,8 +98,8 @@ export default function MerchantShopPage() {
     setEditingId(null);
   }
 
-  function confirmDelete(id: string) {
-    deleteMerchantProduct(id);
+  async function confirmDelete(id: string) {
+    await deleteMerchantProductEntry(id);
     setConfirmDeleteId(null);
     refresh();
   }

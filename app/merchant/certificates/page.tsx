@@ -8,7 +8,7 @@ import {
   generateRandomString,
   type Certificate,
 } from "@/lib/certificate-storage";
-import { getMerchantProductsByType } from "@/lib/merchant-storage";
+import { getMerchantProductsByTypeEntry } from "@/lib/repositories";
 
 const GOLD = "#C9A84C";
 const BLACK = "#080808";
@@ -95,7 +95,7 @@ export default function MerchantCertificatesPage() {
     setProductId(value);
     if (errors.productId) setErrors((p) => ({ ...p, productId: undefined }));
 
-    const exclusives = getMerchantProductsByType("exclusive");
+    const exclusives = getMerchantProductsByTypeEntry("exclusive");
     const match = exclusives.find((p) => p.id === value);
     if (match) {
       setProductName(match.name);

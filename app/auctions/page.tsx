@@ -7,7 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOwnership } from "@/hooks/useOwnership";
 import { useMarketplace } from "@/hooks/useMarketplace";
 import { formatPrice, getProductImage } from "@/lib/utils";
-import { getMerchantProductsByType, type MerchantProduct } from "@/lib/merchant-storage";
+import { type MerchantProduct } from "@/lib/merchant-storage";
+import { getMerchantProductsByTypeEntry, merchantProductsVersion } from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import CountdownTimer from "@/components/ui/CountdownTimer";
 import GoldButton from "@/components/ui/GoldButton";
 import SelectItemModal from "@/components/marketplace/SelectItemModal";
@@ -92,9 +94,13 @@ export default function AuctionsPage() {
   const [noEligibleMessage, setNoEligibleMessage] = useState(false);
   const [merchantProducts, setMerchantProducts] = useState<MerchantProduct[]>([]);
 
+  const productsVersion = useDomainSubscription(
+    "merchant-products-changed",
+    () => merchantProductsVersion()
+  );
   useEffect(() => {
-    setMerchantProducts(getMerchantProductsByType("exclusive"));
-  }, []);
+    setMerchantProducts(getMerchantProductsByTypeEntry("exclusive"));
+  }, [productsVersion]);
 
   const activeListings = listings.filter((l) => l.status === "active");
 
