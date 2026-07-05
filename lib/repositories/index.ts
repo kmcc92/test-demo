@@ -16,6 +16,11 @@ import {
   supabaseMerchantProductRepo,
   type MerchantProductUpdate,
 } from "./supabase/merchantProductRepo";
+import {
+  supabaseServiceRequestRepo,
+  type CreateServiceRequestInput,
+  type ServiceRequestUpdate,
+} from "./supabase/serviceRequestRepo";
 import { supabaseArchiveRepo, type ArchiveEntry } from "./supabase/archiveRepo";
 
 export type { ArchiveEntry } from "./supabase/archiveRepo";
@@ -29,8 +34,20 @@ import {
   deleteMerchantProduct,
   isCertificateIdTaken,
 } from "@/lib/merchant-storage";
+import {
+  type ServiceRequest,
+  getAllServiceRequests,
+  getServiceRequestsForCertificate,
+  getActiveServiceRequest,
+  createServiceRequest,
+  updateServiceRequest,
+} from "@/lib/service-requests";
 
 export type { MerchantProductUpdate } from "./supabase/merchantProductRepo";
+export type {
+  CreateServiceRequestInput,
+  ServiceRequestUpdate,
+} from "./supabase/serviceRequestRepo";
 
 export type { PurchaseInsert, TransferParams } from "./supabase/purchaseRepo";
 import { getCertificateFromRegistry, registerCertificate } from "@/lib/certificate-registry";
@@ -61,6 +78,7 @@ const USE_SUPABASE_STATUS = true;
 const USE_SUPABASE_EVENTS = true;
 const USE_SUPABASE_PURCHASES = true;
 const USE_SUPABASE_MERCHANT_PRODUCTS = true;
+const USE_SUPABASE_SERVICE_REQUESTS = true;
 
 export const purchaseRepo = USE_SUPABASE
   ? localPurchaseRepo // replace with supabasePurchaseRepo later
@@ -419,6 +437,72 @@ export async function deleteMerchantProductEntry(id: string): Promise<void> {
     return;
   }
   deleteMerchantProduct(id);
+}
+
+// ---- Service requests (global workflow): backend-hiding accessors ----
+//
+// The refurbish/replace lifecycle for authenticated pieces. GLOBAL (no owner
+// column; the merchant reads ALL requests) — module-scoped snapshot, lifecycle
+// provider, unfiltered realtime. Consumers (the collection page + merchant
+// dashboard) read synchronously through these accessors and never import the
+// repo. Writes are authoritative persist-first; the repo emits
+// "service-requests-changed" on observable change (callers do NOT manually emit).
+
+export function getAllServiceRequestsEntry(): ServiceRequest[] {
+  return USE_SUPABASE_SERVICE_REQUESTS
+    ? supabaseServiceRequestRepo.getAll()
+    : getAllServiceRequests();
+}
+
+export function getServiceRequestsForCertificateEntry(
+  certificateId: string
+): ServiceRequest[] {
+  return USE_SUPABASE_SERVICE_REQUESTS
+    ? supabaseServiceRequestRepo.getByCertificate(certificateId)
+    : getServiceRequestsForCertificate(certificateId);
+}
+
+export function getActiveServiceRequestEntry(
+  certificateId: string
+): ServiceRequest | null {
+  return USE_SUPABASE_SERVICE_REQUESTS
+    ? supabaseServiceRequestRepo.getActive(certificateId)
+    : getActiveServiceRequest(certificateId);
+}
+
+export function serviceRequestsVersion(): number {
+  return USE_SUPABASE_SERVICE_REQUESTS ? supabaseServiceRequestRepo.version() : 0;
+}
+
+export async function hydrateServiceRequests(): Promise<() => void> {
+  return USE_SUPABASE_SERVICE_REQUESTS
+    ? supabaseServiceRequestRepo.hydrate()
+    : () => {};
+}
+
+// Authoritative persist-first create. Returns the created request, or null if
+// refused (falsy cert / an active request already exists on that certificate) —
+// mirrors lib/service-requests.ts, whose stub (empty id) callers detect the same
+// way. A FK/other DB failure rejects (no phantom local state).
+export async function createServiceRequestEntry(
+  params: CreateServiceRequestInput
+): Promise<ServiceRequest | null> {
+  if (USE_SUPABASE_SERVICE_REQUESTS) {
+    return supabaseServiceRequestRepo.create(params);
+  }
+  const created = createServiceRequest(params);
+  return created && created.id ? created : null;
+}
+
+export async function updateServiceRequestEntry(
+  id: string,
+  updates: ServiceRequestUpdate
+): Promise<void> {
+  if (USE_SUPABASE_SERVICE_REQUESTS) {
+    await supabaseServiceRequestRepo.update(id, updates);
+    return;
+  }
+  updateServiceRequest(id, updates);
 }
 
 // ---- Public archive (global, read-only): backend-hiding accessors ----

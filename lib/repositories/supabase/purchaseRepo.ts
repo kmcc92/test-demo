@@ -28,7 +28,7 @@ import type { SupabaseClient, RealtimeChannel } from "@supabase/supabase-js";
 
 const TABLE = "purchases";
 const COLUMNS =
-  "id, email, product_id, product_name, certificate_id, price, purchased_at, wallet_address, tx_hash";
+  "id, email, product_id, product_name, certificate_id, price, purchased_at, wallet_address, tx_hash, product_image, product_description";
 
 // Write input = PurchaseRecord (unchanged) + the snapshot columns captured at
 // purchase time (product_image/description) so images survive product deletion.
@@ -61,6 +61,8 @@ type PurchaseRow = {
   purchased_at: string;
   wallet_address: string | null;
   tx_hash: string;
+  product_image: string | null;
+  product_description: string | null;
 };
 
 // ---- Private module-scoped state (CURRENT USER ONLY) ----
@@ -92,6 +94,8 @@ function rowToRecord(row: PurchaseRow): PurchaseRecord {
     price: Number(row.price),
     purchasedAt: row.purchased_at,
     walletAddress: row.wallet_address ?? undefined,
+    productImage: row.product_image ?? undefined,
+    productDescription: row.product_description ?? undefined,
   };
 }
 

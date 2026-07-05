@@ -10,6 +10,11 @@ export interface PurchaseRecord {
   price: number;
   purchasedAt: string;
   walletAddress?: string;
+  // Product presentation snapshotted at purchase time, so a sold piece keeps its
+  // image/description even after the merchant product is deleted (invariant #7).
+  // Optional — older records predate these columns.
+  productImage?: string;
+  productDescription?: string;
 }
 
 type PurchaseStore = {

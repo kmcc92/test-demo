@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMarketplace } from "@/hooks/useMarketplace";
-import {
-  getAllServiceRequests,
-  updateServiceRequest,
-  type ServiceRequest,
-} from "@/lib/service-requests";
+import { type ServiceRequest } from "@/lib/service-requests";
 import {
   recordEventEntry,
   getMerchantProductsByTypeEntry,
   merchantProductsVersion,
+  getAllServiceRequestsEntry,
+  updateServiceRequestEntry,
+  serviceRequestsVersion,
 } from "@/lib/repositories";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
@@ -31,10 +30,10 @@ export default function MerchantDashboard() {
   const [quotePrice, setQuotePrice] = useState<string>("");
   const [quoteNote, setQuoteNote] = useState<string>("");
 
-  const allRequests = useDomainSubscription(
-    "service-requests-changed",
-    getAllServiceRequests
-  );
+  // Re-render on any service-request change (hydration / create / update);
+  // read the current snapshot synchronously through the index accessor.
+  useDomainSubscription("service-requests-changed", () => serviceRequestsVersion());
+  const allRequests = getAllServiceRequestsEntry();
 
   const pendingRequests = allRequests.filter((r) => r.status === "pending");
   const quotedRequests = allRequests.filter((r) => r.status === "quoted");
@@ -47,10 +46,11 @@ export default function MerchantDashboard() {
     setQuoteNote("");
   }
 
-  function handleSendQuote(request: ServiceRequest) {
+  async function handleSendQuote(request: ServiceRequest) {
     const priceNum = Number(quotePrice);
     if (!quotePrice || isNaN(priceNum) || priceNum <= 0) return;
-    updateServiceRequest(request.id, {
+    // Persist-first; the repo emits "service-requests-changed" on the change.
+    await updateServiceRequestEntry(request.id, {
       status: "quoted",
       merchantDecision: quoteDecision,
       merchantNote: quoteNote || undefined,
@@ -60,15 +60,15 @@ export default function MerchantDashboard() {
     setQuotingId(null);
     setQuotePrice("");
     setQuoteNote("");
-    emitDomainEvent("service-requests-changed");
   }
 
-  function handleMarkComplete(request: ServiceRequest) {
+  async function handleMarkComplete(request: ServiceRequest) {
     if (!request.merchantDecision) {
       console.warn("Cannot complete: merchantDecision missing", request.id);
       return;
     }
-    updateServiceRequest(request.id, {
+    // Persist-first; the repo emits "service-requests-changed" on the change.
+    await updateServiceRequestEntry(request.id, {
       status: "completed",
       completedAt: new Date().toISOString(),
     });
@@ -82,7 +82,6 @@ export default function MerchantDashboard() {
       },
     }).catch(() => {});
     emitDomainEvent("certificate-events-changed");
-    emitDomainEvent("service-requests-changed");
   }
 
   function formatCAD(cents: number): string {

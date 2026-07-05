@@ -21,18 +21,23 @@ import {
   type CertificateEventType,
 } from "@/lib/certificate-events";
 import { getCertificateView } from "@/lib/certificate-view";
-import {
-  createServiceRequest,
-  getActiveServiceRequest,
-  updateServiceRequest,
-  type ServiceRequest,
-} from "@/lib/service-requests";
+import { type ServiceRequest } from "@/lib/service-requests";
 import GoldButton from "@/components/ui/GoldButton";
 import AuthBadge from "@/components/ui/AuthBadge";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
-import { certificateRegistryVersion, certificateStatusVersion, certificateEventsVersion, clearStatusEntry, recordEventEntry } from "@/lib/repositories";
+import {
+  certificateRegistryVersion,
+  certificateStatusVersion,
+  certificateEventsVersion,
+  clearStatusEntry,
+  recordEventEntry,
+  createServiceRequestEntry,
+  getActiveServiceRequestEntry,
+  updateServiceRequestEntry,
+  serviceRequestsVersion,
+} from "@/lib/repositories";
 
 // stripePromise must be at module level — never inside a component
 const stripePromise = loadStripe(
@@ -699,9 +704,9 @@ export default function CollectionPage() {
     "certificate-events-changed",
     () => certificateEventsVersion()
   );
-  const serviceRequestsVersion = useDomainSubscription(
+  const serviceRequestsVer = useDomainSubscription(
     "service-requests-changed",
-    () => Date.now()
+    () => serviceRequestsVersion()
   );
   const statusVersion = useDomainSubscription(
     "certificate-status-changed",
@@ -737,12 +742,15 @@ export default function CollectionPage() {
           displayName,
           status: view.status,
           timeline: view.timeline,
-          activeRequest: getActiveServiceRequest(purchase.certificateId),
-          image: getProductImage(purchase.productId),
+          activeRequest: getActiveServiceRequestEntry(purchase.certificateId),
+          // Prefer the durable purchase-time snapshot (survives product deletion,
+          // invariant #7); fall back to the live product for older purchases that
+          // predate the snapshot columns; empty string as final graceful fallback.
+          image: purchase.productImage || getProductImage(purchase.productId) || "",
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authenticatedPurchases, mounted, eventsVersion, serviceRequestsVersion, statusVersion, certificatesVersion]
+    [authenticatedPurchases, mounted, eventsVersion, serviceRequestsVer, statusVersion, certificatesVersion]
   );
 
   const activeItems = items.filter((i) => i.status === "active");
@@ -769,14 +777,14 @@ export default function CollectionPage() {
     setRequestError(null);
   }
 
-  function handleSubmitRequest() {
+  async function handleSubmitRequest() {
     if (!activeItemCertId) return;
 
     setSubmitting(true);
     setRequestError(null);
 
-    // Explicit UI-level pre-check (belt and suspenders)
-    const existing = getActiveServiceRequest(activeItemCertId);
+    // Explicit UI-level pre-check (belt and suspenders) — synchronous snapshot read.
+    const existing = getActiveServiceRequestEntry(activeItemCertId);
     if (existing) {
       setRequestError("A service request already exists for this item.");
       setSubmitting(false);
@@ -786,12 +794,20 @@ export default function CollectionPage() {
     const item = items.find((i) => i.purchase.certificateId === activeItemCertId);
     const resolvedProductName = item?.displayName ?? "Unknown Item";
 
-    const result = createServiceRequest({
-      certificateId: activeItemCertId,
-      productName: resolvedProductName,
-      requestType,
-      customerDescription: description,
-    });
+    // Persist-first; the repo emits "service-requests-changed" on success.
+    let result: ServiceRequest | null;
+    try {
+      result = await createServiceRequestEntry({
+        certificateId: activeItemCertId,
+        productName: resolvedProductName,
+        requestType,
+        customerDescription: description,
+      });
+    } catch {
+      setRequestError("Failed to create service request. Please try again.");
+      setSubmitting(false);
+      return;
+    }
 
     // Robust stub detection (handles null, undefined, empty id)
     if (!result || !result.id) {
@@ -812,7 +828,6 @@ export default function CollectionPage() {
     setActiveItemCertId(null);
     setDescription("");
     setSubmitting(false);
-    emitDomainEvent("service-requests-changed");
     emitDomainEvent("certificate-events-changed");
   }
 
@@ -820,24 +835,24 @@ export default function CollectionPage() {
     setPayingItem(item);
   }
 
-  function handleDeclineQuote(item: CollectionItem) {
+  async function handleDeclineQuote(item: CollectionItem) {
     if (!item.activeRequest) return;
-    updateServiceRequest(item.activeRequest.id, {
+    // Persist-first; the repo emits "service-requests-changed" on the change.
+    await updateServiceRequestEntry(item.activeRequest.id, {
       status: "denied",
       customerResponseAt: new Date().toISOString(),
     });
-    emitDomainEvent("service-requests-changed");
   }
 
-  function handlePaymentSuccess(paymentIntentId: string) {
+  async function handlePaymentSuccess(paymentIntentId: string) {
     if (!payingItem?.activeRequest) return;
-    updateServiceRequest(payingItem.activeRequest.id, {
+    // Persist-first; the repo emits "service-requests-changed" on the change.
+    await updateServiceRequestEntry(payingItem.activeRequest.id, {
       status: "paid",
       stripePaymentIntentId: paymentIntentId,
       paidAt: new Date().toISOString(),
     });
     setPayingItem(null);
-    emitDomainEvent("service-requests-changed");
   }
 
   if (!isLoaded) return null;

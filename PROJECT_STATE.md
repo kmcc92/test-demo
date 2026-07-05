@@ -6,7 +6,7 @@
 
 ## CURRENT PHASE
 
-Phase 5 — Supabase Migration · **Step 8 complete** (merchant products).
+Phase 5 — Supabase Migration · **Step 9 complete** (service requests).
 (Phases 1–4 complete; see COMPLETED below for their detail.)
 
 ---
@@ -29,19 +29,34 @@ importing a repo never loads `lib/supabase.ts` (import-safety).
 | Certificate events | `supabase/certificateEventsRepo.ts` | `Map<certId, Event[]>` (global) | append-only ledger; `seenIds` dedupe; INSERT-only realtime |
 | Purchases | `supabase/purchaseRepo.ts` | single **current-user** array (private) | email-scoped hydrate + epoch guard; **atomic `transfer_ownership` RPC** for auction transfers |
 | Merchant products | `supabase/merchantProductRepo.ts` | flat `Map<id>` (global public catalog) | full CRUD; LWW edits; one-way create→cert coupling |
+| Service requests | `supabase/serviceRequestRepo.ts` | flat `Map<id>` (global workflow) | full CRUD; refurbish/replace lifecycle; GLOBAL (no owner column, merchant reads all); `certificate_id` is a FK→certificates |
 
 Per-domain flags in `lib/repositories/index.ts` — **all currently `true`**:
 `USE_SUPABASE_CERTIFICATES`, `USE_SUPABASE_STATUS`, `USE_SUPABASE_EVENTS`,
-`USE_SUPABASE_PURCHASES`, `USE_SUPABASE_MERCHANT_PRODUCTS`.
+`USE_SUPABASE_PURCHASES`, `USE_SUPABASE_MERCHANT_PRODUCTS`,
+`USE_SUPABASE_SERVICE_REQUESTS`.
 Global `USE_SUPABASE` stays `false` until the last domain flips.
+
+Step 9 notes: service requests are GLOBAL, not user-scoped — the table has no
+owner/email column and `/merchant` reads every request via
+`getAllServiceRequestsEntry()`; the customer view (`/collection`) is a
+client-side filter over owned `certificateId`s. So it reuses the
+merchant-products/registry pattern (module-scoped snapshot, unfiltered realtime,
+no epoch guard). CRUD dedup = Map replacement keyed by request id (not seenIds).
+`ServiceRequestProvider` (lifecycle only) mounts in `app/layout.tsx` under
+`MerchantCatalogProvider`. Consumers rewired to index accessors
+(`getAllServiceRequestsEntry`, `getActiveServiceRequestEntry`,
+`createServiceRequestEntry`, `updateServiceRequestEntry`, `serviceRequestsVersion`)
+— they no longer import `lib/service-requests` (except the `ServiceRequest` type)
+and no longer manually emit `service-requests-changed` (the repo emits on change).
 
 ### Still on localStorage (not yet migrated)
 
-- **Service requests** (`lib/service-requests.ts`, `test_service_requests_v1`) — Step 9
 - **Marketplace listings** (`contexts/MarketplaceContext.tsx`) — session-only React state — Step 10
 - Legacy backends kept as the flag-off path and **must NOT be deleted**:
   `lib/certificate-registry.ts`, `lib/certificate-status.ts`,
-  `lib/certificate-events.ts`, `lib/purchase-storage.ts`, `lib/merchant-storage.ts`.
+  `lib/certificate-events.ts`, `lib/purchase-storage.ts`, `lib/merchant-storage.ts`,
+  `lib/service-requests.ts`.
 
 ### Auth
 
@@ -52,8 +67,15 @@ Real Supabase Auth + RLS is pending (end of Phase 5).
 
 - **Realtime must be enabled per-table** in Supabase for live cross-device push:
   `certificates`, `certificate_status`, `certificate_events`, `purchases`,
-  `merchant_products`. Without it, reads/writes still work but changes appear
-  only on next hydrate (reload/login), not instantly.
+  `merchant_products`, `service_requests`. Without it, reads/writes still work
+  but changes appear only on next hydrate (reload/login), not instantly.
+  **Step 9 TODO (manual): enable Realtime for `service_requests`** in
+  Dashboard → Database → Replication before cross-device testing.
+- **Service requests are NOT access-secured** (same as purchases): no owner
+  column, RLS off, anon key — any client can read/write any request. The
+  customer/merchant split is UX-only until RLS + real auth. Also: `certificate_id`
+  is a FK→certificates, so a request for an unregistered cert fails the insert
+  (persist-first surfaces it as a caught error, no phantom local state).
 - **Purchases are NOT access-secured** until RLS + real auth land. The email
   Realtime/query filter is **UX-only** — a client could still query another
   user's rows via the anon key. Do not treat email scoping as a security boundary.
@@ -70,7 +92,7 @@ Real Supabase Auth + RLS is pending (end of Phase 5).
 
 ### Remaining Phase 5 sequence
 
-1. **Step 9 — Service requests → Supabase**
+1. ~~**Step 9 — Service requests → Supabase**~~ ✅ done
 2. **Step 10 — Marketplace listings → Supabase** (removes the session-only limitation)
 3. **Supabase Auth + RLS** — real identities; flip email scoping into an enforced
    security boundary; enable per-user/per-designer row policies (multi-tenant groundwork)
