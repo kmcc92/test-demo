@@ -16,7 +16,7 @@ import {
   writePurchases,
   type PurchaseRecord,
 } from "@/lib/purchase-storage";
-import { recordEvent } from "@/lib/certificate-events";
+import { recordEventEntry } from "@/lib/repositories";
 
 export interface OwnershipContextValue {
   purchases: PurchaseRecord[];
@@ -54,16 +54,14 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
       }
 
       if (record.certificateId) {
-        try {
-          recordEvent({
-            certificateId: record.certificateId,
-            eventType: "purchased",
-            actorType: "system",
-            metadata: { price: String(record.price) },
-          });
-        } catch {
-          // Event recording is a side effect only — ownership state above is unaffected.
-        }
+        // Best-effort, fire-and-forget: a failed event write must never affect
+        // ownership state above. addOwnership stays synchronous.
+        void recordEventEntry({
+          certificateId: record.certificateId,
+          eventType: "purchased",
+          actorType: "system",
+          metadata: { price: String(record.price) },
+        }).catch(() => {});
       }
     },
     [userEmail]

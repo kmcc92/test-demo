@@ -17,7 +17,6 @@ import { useOwnership } from "@/hooks/useOwnership";
 import { formatPrice, getProductImage } from "@/lib/utils";
 import { type CertificateStatus } from "@/lib/certificate-status";
 import {
-  recordEvent,
   type CertificateEvent,
   type CertificateEventType,
 } from "@/lib/certificate-events";
@@ -33,7 +32,7 @@ import AuthBadge from "@/components/ui/AuthBadge";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
-import { certificateRegistryVersion, certificateStatusVersion, clearStatusEntry } from "@/lib/repositories";
+import { certificateRegistryVersion, certificateStatusVersion, certificateEventsVersion, clearStatusEntry, recordEventEntry } from "@/lib/repositories";
 
 // stripePromise must be at module level — never inside a component
 const stripePromise = loadStripe(
@@ -696,9 +695,9 @@ export default function CollectionPage() {
 
   const [payingItem, setPayingItem] = useState<CollectionItem | null>(null);
 
-  const certificateEventsVersion = useDomainSubscription(
+  const eventsVersion = useDomainSubscription(
     "certificate-events-changed",
-    () => Date.now()
+    () => certificateEventsVersion()
   );
   const serviceRequestsVersion = useDomainSubscription(
     "service-requests-changed",
@@ -743,7 +742,7 @@ export default function CollectionPage() {
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [authenticatedPurchases, mounted, certificateEventsVersion, serviceRequestsVersion, statusVersion, certificatesVersion]
+    [authenticatedPurchases, mounted, eventsVersion, serviceRequestsVersion, statusVersion, certificatesVersion]
   );
 
   const activeItems = items.filter((i) => i.status === "active");
@@ -801,13 +800,13 @@ export default function CollectionPage() {
       return;
     }
 
-    // Only record event AFTER confirmed successful request creation
-    recordEvent({
+    // Only record event AFTER confirmed successful request creation (best-effort)
+    void recordEventEntry({
       certificateId: activeItemCertId,
       eventType: requestType === "refurbish" ? "refurbish_requested" : "replace_requested",
       actorType: "owner",
       metadata: { description },
-    });
+    }).catch(() => {});
 
     setRequestModalOpen(false);
     setActiveItemCertId(null);

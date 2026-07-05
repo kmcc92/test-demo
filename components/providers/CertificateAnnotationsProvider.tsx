@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { hydrateCertificateStatus } from "@/lib/repositories";
+import { hydrateCertificateStatus, hydrateCertificateEvents } from "@/lib/repositories";
 
 // Lifecycle-only provider for certificate ANNOTATIONS (status now; events in
 // Step 6b). It owns NO data — the repositories own their snapshots. On mount it
@@ -16,24 +16,24 @@ export default function CertificateAnnotationsProvider({
 }) {
   useEffect(() => {
     let active = true;
-    let disposeStatus: (() => void) | null = null;
+    const disposers: Array<() => void> = [];
 
-    hydrateCertificateStatus()
-      .then((teardown) => {
-        if (active) {
-          disposeStatus = teardown;
-        } else {
-          teardown();
-        }
-      })
-      .catch(() => {
-        // Hydration failure leaves an empty snapshot; reads fall back to
-        // "active". Nothing to surface (no readiness leakage by design).
-      });
+    const attach = (teardown: () => void) => {
+      if (active) {
+        disposers.push(teardown);
+      } else {
+        teardown();
+      }
+    };
+
+    // Hydrate status + events. A failure leaves an empty snapshot; reads fall
+    // back to the empty/"active" default (no readiness leakage by design).
+    hydrateCertificateStatus().then(attach).catch(() => {});
+    hydrateCertificateEvents().then(attach).catch(() => {});
 
     return () => {
       active = false;
-      if (disposeStatus) disposeStatus();
+      disposers.forEach((d) => d());
     };
   }, []);
 

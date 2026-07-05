@@ -6,9 +6,14 @@ import { localCertificateStatusRepo } from "./localStorage/certificateStatusRepo
 import { localCertificateRegistryRepo } from "./localStorage/certificateRegistryRepo";
 import { supabaseCertificateRegistryRepo } from "./supabase/certificateRegistryRepo";
 import { supabaseCertificateStatusRepo } from "./supabase/certificateStatusRepo";
+import { supabaseCertificateEventsRepo } from "./supabase/certificateEventsRepo";
 import { getCertificateFromRegistry, registerCertificate } from "@/lib/certificate-registry";
 import type { RegisteredCertificate } from "@/lib/certificate-registry";
-import { recordEvent } from "@/lib/certificate-events";
+import {
+  recordEvent,
+  getCertificateTimeline,
+  type CertificateEvent,
+} from "@/lib/certificate-events";
 import {
   getCertificateStatus,
   getCertificateStatusRecord,
@@ -27,6 +32,7 @@ const USE_SUPABASE = false;
 // per domain — the global switch above remains false until the last flip.
 const USE_SUPABASE_CERTIFICATES = true;
 const USE_SUPABASE_STATUS = true;
+const USE_SUPABASE_EVENTS = true;
 
 export const purchaseRepo = USE_SUPABASE
   ? localPurchaseRepo // replace with supabasePurchaseRepo later
@@ -94,14 +100,18 @@ export async function registerCertificateEntry(params: {
     // Persist to Supabase FIRST; the adapter updates snapshot + version + emits
     // "certificates-changed" only after the durable write succeeds.
     await supabaseCertificateRegistryRepo.register(params);
-    // Preserve the "created" certificate event the localStorage backend records
-    // internally (events domain stays on localStorage until its own pass).
-    recordEvent({
-      certificateId: params.certificateId.trim().toUpperCase(),
-      eventType: "created",
-      actorType: "merchant",
-      metadata: { productName: params.productName },
-    });
+    // Preserve the "created" certificate event (best-effort — a failed event
+    // write must not fail a successful registration).
+    try {
+      await recordEventEntry({
+        certificateId: params.certificateId.trim().toUpperCase(),
+        eventType: "created",
+        actorType: "merchant",
+        metadata: { productName: params.productName },
+      });
+    } catch {
+      // Observational only — registry write above is unaffected.
+    }
     return;
   }
   // localStorage path: registerCertificate records the "created" event itself.
@@ -154,7 +164,7 @@ export async function reportStolenEntry(
       note: details?.note,
     });
     try {
-      recordEvent({
+      await recordEventEntry({
         certificateId: certificateId.trim().toUpperCase(),
         eventType: "reported_stolen",
         actorType: "owner",
@@ -183,7 +193,7 @@ export async function reportLostEntry(
       note: details?.note,
     });
     try {
-      recordEvent({
+      await recordEventEntry({
         certificateId: certificateId.trim().toUpperCase(),
         eventType: "reported_lost",
         actorType: "owner",
@@ -205,7 +215,7 @@ export async function clearStatusEntry(certificateId: string): Promise<void> {
   if (USE_SUPABASE_STATUS) {
     await supabaseCertificateStatusRepo.setStatus(certificateId, "active");
     try {
-      recordEvent({
+      await recordEventEntry({
         certificateId: certificateId.trim().toUpperCase(),
         eventType: "recovered",
         actorType: "owner",
@@ -217,4 +227,40 @@ export async function clearStatusEntry(certificateId: string): Promise<void> {
     return;
   }
   clearStatus(certificateId);
+}
+
+// ---- Certificate events (append-only ledger): backend-hiding accessors ----
+
+export function getTimelineEntry(certificateId: string): CertificateEvent[] {
+  return USE_SUPABASE_EVENTS
+    ? supabaseCertificateEventsRepo.getTimeline(certificateId)
+    : getCertificateTimeline(certificateId);
+}
+
+export function certificateEventsVersion(): number {
+  return USE_SUPABASE_EVENTS ? supabaseCertificateEventsRepo.version() : 0;
+}
+
+export async function hydrateCertificateEvents(): Promise<() => void> {
+  return USE_SUPABASE_EVENTS
+    ? supabaseCertificateEventsRepo.hydrate()
+    : () => {};
+}
+
+// Backend-hiding event recorder (append-only). Supabase path is persist-first;
+// the repo generates a stable id + created_at, dedupes by id, appends, and emits
+// "certificate-events-changed" only on a genuine new append. Callers that treat
+// events as observational should invoke this best-effort (fire-and-forget with a
+// swallowed rejection, or await inside try/catch).
+export async function recordEventEntry(
+  event: Omit<CertificateEvent, "id" | "timestamp"> & {
+    id?: string;
+    timestamp?: string;
+  }
+): Promise<void> {
+  if (USE_SUPABASE_EVENTS) {
+    await supabaseCertificateEventsRepo.recordEvent(event);
+    return;
+  }
+  recordEvent(event);
 }

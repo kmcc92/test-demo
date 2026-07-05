@@ -9,7 +9,7 @@ import {
   updateServiceRequest,
   type ServiceRequest,
 } from "@/lib/service-requests";
-import { recordEvent } from "@/lib/certificate-events";
+import { recordEventEntry } from "@/lib/repositories";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
 import { emitDomainEvent } from "@/lib/domain-events";
 
@@ -67,7 +67,7 @@ export default function MerchantDashboard() {
       status: "completed",
       completedAt: new Date().toISOString(),
     });
-    recordEvent({
+    void recordEventEntry({
       certificateId: request.certificateId,
       eventType: request.merchantDecision === "refurbish" ? "refurbished" : "replaced",
       actorType: "merchant",
@@ -75,7 +75,7 @@ export default function MerchantDashboard() {
         merchantNote: request.merchantNote ?? "",
         fee: String(request.quotedPrice ?? 0),
       },
-    });
+    }).catch(() => {});
     emitDomainEvent("certificate-events-changed");
     emitDomainEvent("service-requests-changed");
   }

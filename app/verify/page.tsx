@@ -13,9 +13,8 @@ import {
   getCertificateDisplayContext,
   type CertificateDisplayContext,
 } from "@/lib/certificate-display-adapter";
-import { getCertificateTimeline } from "@/lib/certificate-events";
 import { useDomainSubscription } from "@/lib/use-domain-subscription";
-import { certificateRegistryVersion } from "@/lib/repositories";
+import { certificateRegistryVersion, getTimelineEntry } from "@/lib/repositories";
 
 const EVENT_LABEL_MAP: Record<string, string> = {
   created: "Authenticated",
@@ -606,7 +605,7 @@ export default function VerifyPage() {
 
   const timeline = useDomainSubscription(
     "certificate-events-changed",
-    () => (certificateId ? getCertificateTimeline(certificateId) : [])
+    () => (certificateId ? getTimelineEntry(certificateId) : [])
   );
 
   // Registry version — bumps when the Supabase-backed snapshot hydrates or a
