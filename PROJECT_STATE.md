@@ -6,7 +6,74 @@
 
 ## CURRENT PHASE
 
-Phase 4 — Polish & Harden
+Phase 5 — Supabase Migration · **Step 8 complete** (merchant products).
+(Phases 1–4 complete; see COMPLETED below for their detail.)
+
+---
+
+## PHASE 5 — SUPABASE MIGRATION STATUS
+
+Per-domain migration off localStorage onto Supabase, one repository at a time.
+Pattern: repo owns a module-scoped snapshot + `hydrate()`/`version()` + realtime;
+a lifecycle provider triggers hydration; the UI reads through backend-hiding
+index accessors (`lib/repositories/index.ts`) and stays synchronous; writes are
+authoritative persist-first. The Supabase client is lazily dynamic-imported so
+importing a repo never loads `lib/supabase.ts` (import-safety).
+
+### Domains migrated → Supabase (cross-device)
+
+| Domain | Repo | Snapshot shape | Notes |
+|--------|------|----------------|-------|
+| Certificate registry | `supabase/certificateRegistryRepo.ts` | `Map<certId>` (global) | table `certificates`; identity authority |
+| Certificate status | `supabase/certificateStatusRepo.ts` | `Map<certId>` (global) | `"active"` = deleted row; LWW |
+| Certificate events | `supabase/certificateEventsRepo.ts` | `Map<certId, Event[]>` (global) | append-only ledger; `seenIds` dedupe; INSERT-only realtime |
+| Purchases | `supabase/purchaseRepo.ts` | single **current-user** array (private) | email-scoped hydrate + epoch guard; **atomic `transfer_ownership` RPC** for auction transfers |
+| Merchant products | `supabase/merchantProductRepo.ts` | flat `Map<id>` (global public catalog) | full CRUD; LWW edits; one-way create→cert coupling |
+
+Per-domain flags in `lib/repositories/index.ts` — **all currently `true`**:
+`USE_SUPABASE_CERTIFICATES`, `USE_SUPABASE_STATUS`, `USE_SUPABASE_EVENTS`,
+`USE_SUPABASE_PURCHASES`, `USE_SUPABASE_MERCHANT_PRODUCTS`.
+Global `USE_SUPABASE` stays `false` until the last domain flips.
+
+### Still on localStorage (not yet migrated)
+
+- **Service requests** (`lib/service-requests.ts`, `test_service_requests_v1`) — Step 9
+- **Marketplace listings** (`contexts/MarketplaceContext.tsx`) — session-only React state — Step 10
+- Legacy backends kept as the flag-off path and **must NOT be deleted**:
+  `lib/certificate-registry.ts`, `lib/certificate-status.ts`,
+  `lib/certificate-events.ts`, `lib/purchase-storage.ts`, `lib/merchant-storage.ts`.
+
+### Auth
+
+Still **fake** (email-based session in `lib/auth-storage.ts`, anon key, no JWT).
+Real Supabase Auth + RLS is pending (end of Phase 5).
+
+### Standing verification dependencies (carry-over, re-check each deploy)
+
+- **Realtime must be enabled per-table** in Supabase for live cross-device push:
+  `certificates`, `certificate_status`, `certificate_events`, `purchases`,
+  `merchant_products`. Without it, reads/writes still work but changes appear
+  only on next hydrate (reload/login), not instantly.
+- **Purchases are NOT access-secured** until RLS + real auth land. The email
+  Realtime/query filter is **UX-only** — a client could still query another
+  user's rows via the anon key. Do not treat email scoping as a security boundary.
+- **`transfer_ownership` RPC signature is unverified in code** — built against the
+  expected param names; a mismatch fails auction settlement with a caught toast
+  (regular checkout is unaffected). Verify against the live function.
+- **No `updated_at` on `merchant_products`** → catalog edits are last-write-wins
+  (safe at single-merchant scale; add `updated_at` + optimistic concurrency for
+  Phase 7 multi-designer).
+- **Always test in a fresh, non-incognito session on the canonical URL**
+  (`test-demo-lyart-one.vercel.app`). A stale browser/dev bundle previously
+  masked a working migration and read as a regression — verify the running build
+  before diagnosing.
+
+### Remaining Phase 5 sequence
+
+1. **Step 9 — Service requests → Supabase**
+2. **Step 10 — Marketplace listings → Supabase** (removes the session-only limitation)
+3. **Supabase Auth + RLS** — real identities; flip email scoping into an enforced
+   security boundary; enable per-user/per-designer row policies (multi-tenant groundwork)
 
 ---
 

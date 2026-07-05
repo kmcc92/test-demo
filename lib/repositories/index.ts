@@ -16,6 +16,9 @@ import {
   supabaseMerchantProductRepo,
   type MerchantProductUpdate,
 } from "./supabase/merchantProductRepo";
+import { supabaseArchiveRepo, type ArchiveEntry } from "./supabase/archiveRepo";
+
+export type { ArchiveEntry } from "./supabase/archiveRepo";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import {
   type MerchantProduct,
@@ -416,4 +419,21 @@ export async function deleteMerchantProductEntry(id: string): Promise<void> {
     return;
   }
   deleteMerchantProduct(id);
+}
+
+// ---- Public archive (global, read-only): backend-hiding accessors ----
+//
+// A new read (always Supabase). GLOBAL and physically separate from the
+// user-scoped purchase snapshot. Returns only the ArchiveEntry view model.
+
+export function getArchiveEntries(): ArchiveEntry[] {
+  return supabaseArchiveRepo.getArchive();
+}
+
+export async function hydrateArchive(): Promise<() => void> {
+  return supabaseArchiveRepo.hydrate();
+}
+
+export function archiveVersion(): number {
+  return supabaseArchiveRepo.version();
 }

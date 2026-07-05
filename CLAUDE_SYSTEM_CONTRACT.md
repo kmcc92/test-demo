@@ -86,6 +86,38 @@ When a product is deleted: `certificateId` stays in registry, `PurchaseRecord` s
 
 ---
 
+## PROVENANCE MODEL — PHASE 6 BUILD
+
+> **Status: Phase 6, not Phase 5.** This design is preserved and valid; it is NOT built in Phase 5.
+> Its principles (append-only ledger, identity protection, price public / owner anonymous,
+> `ArchiveEntry` insulation) already guide the Phase 5 SIMPLE scoped `/library` archive so the later
+> expansion is painless. Do not build `ownership_transfers` or the append-based transfer RPC until
+> Phase 6 (after real auth + RLS land).
+
+- Ownership becomes an **APPEND-ONLY ledger of transfer events**, not a mutable current-state table.
+  History is never destroyed.
+- **`ownership_transfers` (new):** `certificate_id`, `from_owner` (null for the original sale),
+  `to_owner`, `price`, `occurred_at`, `transfer_type` (flexible text —
+  `checkout`/`auction`/`secondary_sale`/`buyback`/`gift`/…, extensible for the future configurable
+  designer platform), `payment_ref`, product snapshot (name/image/description at sale time).
+- **`purchases` stays** as fast CURRENT-OWNERSHIP state (kept in sync on transfer) so `/collection`,
+  `/verify`, and the user-scoped snapshot keep working with minimal change. The ledger is written
+  alongside. (Final current-vs-derived decision to be confirmed in the ledger design pass.)
+- **Invariant #3 preserved:** every transfer event carries a payment reference.
+- **IDENTITY PROTECTION:** the ledger stores owner references, but the PUBLIC archive/view NEVER
+  exposes email / wallet / `tx_hash`. Owners render as "a verified collector" by default, or an
+  OPT-IN public handle. Prior owners are preserved in the chain as anonymous verified-collector nodes
+  (collector → collector → you) so the provenance journey is visible without revealing identity.
+- **PUBLIC ARCHIVE (`/library`):** shows every authenticated piece with original sale (first event) +
+  latest sale (last event) as the headline, full price history on demand. Public fields: piece, price,
+  dates, authenticated status, anonymous/opt-in owner. **Price IS public** (realized value is core to
+  the value proposition). Never public: email, wallet, `tx_hash`.
+- **Privacy is UX-ONLY** until RLS + real auth + a dedicated public provenance view. Under fake auth +
+  anon key the raw tables are readable regardless of UI. The `ArchiveEntry` view model + repo boundary
+  make the future swap (raw tables → public view) painless.
+
+---
+
 ## 4. ARCHITECTURE LAYERS
 
 ### Data flow
@@ -208,8 +240,8 @@ Framework: Vitest (`npm test`). Test files live in `tests/`.
 | 1–3 | Shell, scripted path, supporting pages | Complete |
 | 4 | Polish & harden | In progress |
 | 4.5 | Domain invariant tests (Vitest) | **In progress** |
-| 5 | Supabase — real auth, persistence, multi-device | Next |
-| 6 | Blockchain — Polygon certificate minting + public anonymous ownership verification | Planned |
+| 5 | Supabase — persistence, multi-device, real auth + RLS; simple scoped `/library` archive | Next |
+| 6 | Provenance ownership ledger → Polygon on-chain mirror (trustless) + full `/library` history + public anonymous ownership verification | Planned |
 | 7 | Multi-designer — accounts, Stripe Connect, storefronts | Planned |
 | 8 | Designer service network — refurbish/replace/resize | Planned |
 | 9 | Fashion competitions | Planned |
@@ -217,8 +249,33 @@ Framework: Vitest (`npm test`). Test files live in `tests/`.
 | 11 | Designer website integration (API/widgets) | Planned |
 | 12 | Production launch — Quebec Law 25, GST/QST, French, Stripe live | Planned |
 
-### Phase 6 deliverable — PUBLIC ANONYMOUS OWNERSHIP VERIFICATION
-Goal: anyone who scans an NFC chip (no login) sees the verified owner of the item on `/verify`.
+### Phase 5 deliverable — SIMPLE SCOPED `/library` ARCHIVE (the leak fix)
+A SIMPLE public archive: every authenticated SOLD piece (`purchases` rows with a `certificate_id`),
+deduped to the CURRENT owner (one entry per `certificate_id`, latest transfer), via an **`ArchiveEntry`
+view model**. Public fields: piece, price, sold date, authenticated status; owner rendered anonymously
+("a verified collector"). NEVER exposes email / wallet / `tx_hash`. Privacy is UX-only until RLS + real
+auth (documented). The `ArchiveEntry` model lets Phase 6 expand this to full price history with **no
+page rewrite**. Design principles come from **PROVENANCE MODEL** (a Phase 6 build) so the later
+expansion is painless.
+
+**Phase 5 remaining sequence:** simple scoped `/library` archive (fix the leak) — NEXT → service
+requests (9) → marketplace (10) → Supabase Auth (real auth) → RLS. Then Phase 6.
+
+### Phase 6 deliverable — PROVENANCE LEDGER → BLOCKCHAIN → PUBLIC VERIFICATION (in order)
+1. **Provenance ownership ledger** — append-only `ownership_transfers`; an append-based transfer RPC
+   replacing delete-on-transfer; backfill existing `purchases` as original-sale events; keep `purchases`
+   as fast current-ownership state (**Model A**).
+2. **Blockchain mirror of the ledger (Polygon)** — makes it trustless.
+3. **Full `/library` provenance** — original + latest + full price history.
+4. **Public anonymous ownership verification** — anyone who scans an NFC chip (no login) sees the
+   verified owner on `/verify`.
+
+**Why deferred, not dropped:** the ledger changes ownership — the most fundamental concept — touching
+purchases, transfers, archive, verify, and blockchain; it is a platform evolution, not a persistence
+migration. Its identity boundary (private ledger emails → anonymous public archive) is UX-only until
+real auth + RLS, so building it AFTER auth + RLS makes the privacy boundary real from day one. It is
+the natural blockchain foundation, best designed alongside the on-chain mirror. This is a POC on test
+data — no real provenance is lost by deferring, and the `/library` leak has a simple correct fix now.
 
 **Dependency chain (must land in this order):**
 real auth (Supabase Auth) → verified ownership identities → blockchain-backed ownership proof
@@ -259,6 +316,11 @@ but not purchased" for anonymous viewers.
   intentionally deferred to Phase 6 — it is unsafe under fake auth and only meaningful once ownership is
   cryptographically backed. When built, it reads from a dedicated public verification surface, NOT a
   public-read policy on the private `purchases` table.
+- The auction transfer RPC currently DELETES the seller's purchase row (destroys history). This will be
+  replaced by the append-only provenance ledger in **Phase 6** (see PROVENANCE MODEL). Until then,
+  resales erase prior ownership — acceptable for a POC on test data.
+- No provenance ledger exists yet — ownership history is not preserved across transfers until Phase 6
+  (append-only ledger, then on-chain mirror for cryptographic permanence).
 
 ---
 
