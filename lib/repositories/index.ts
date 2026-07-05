@@ -7,6 +7,14 @@ import { localCertificateRegistryRepo } from "./localStorage/certificateRegistry
 import { supabaseCertificateRegistryRepo } from "./supabase/certificateRegistryRepo";
 import { supabaseCertificateStatusRepo } from "./supabase/certificateStatusRepo";
 import { supabaseCertificateEventsRepo } from "./supabase/certificateEventsRepo";
+import {
+  supabasePurchaseRepo,
+  type PurchaseInsert,
+  type TransferParams,
+} from "./supabase/purchaseRepo";
+import type { PurchaseRecord } from "@/lib/purchase-storage";
+
+export type { PurchaseInsert, TransferParams } from "./supabase/purchaseRepo";
 import { getCertificateFromRegistry, registerCertificate } from "@/lib/certificate-registry";
 import type { RegisteredCertificate } from "@/lib/certificate-registry";
 import {
@@ -33,6 +41,7 @@ const USE_SUPABASE = false;
 const USE_SUPABASE_CERTIFICATES = true;
 const USE_SUPABASE_STATUS = true;
 const USE_SUPABASE_EVENTS = true;
+const USE_SUPABASE_PURCHASES = true;
 
 export const purchaseRepo = USE_SUPABASE
   ? localPurchaseRepo // replace with supabasePurchaseRepo later
@@ -263,4 +272,50 @@ export async function recordEventEntry(
     return;
   }
   recordEvent(event);
+}
+
+// ---- Purchases (private, per-user): backend-hiding accessors ----
+//
+// Purchases are committed to Supabase (USE_SUPABASE_PURCHASES). The snapshot is
+// current-user-only and lives in the repo; OwnershipProvider drives hydrate/
+// dispose off the auth lifecycle. NOTE: the localStorage (false) branch is an
+// inert legacy stub — the pre-migration path lived in OwnershipProvider, which
+// this migration replaces.
+
+export function getPurchasesEntry(): PurchaseRecord[] {
+  return USE_SUPABASE_PURCHASES ? supabasePurchaseRepo.getPurchases() : [];
+}
+
+export function isOwnedEntry(productId: string): boolean {
+  return USE_SUPABASE_PURCHASES ? supabasePurchaseRepo.isOwned(productId) : false;
+}
+
+export function purchasesVersion(): number {
+  return USE_SUPABASE_PURCHASES ? supabasePurchaseRepo.version() : 0;
+}
+
+export async function hydratePurchases(email: string): Promise<void> {
+  if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.hydrate(email);
+}
+
+export function disposePurchases(): void {
+  if (USE_SUPABASE_PURCHASES) supabasePurchaseRepo.dispose();
+}
+
+// Authoritative persist-first. certificate_id verbatim (#2); non-empty payment
+// reference enforced in the repo (#3).
+export async function addOwnershipEntry(record: PurchaseInsert): Promise<void> {
+  if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.addOwnership(record);
+}
+
+export async function removeOwnershipEntry(
+  email: string,
+  productId: string
+): Promise<void> {
+  if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.removeOwnership(email, productId);
+}
+
+// Atomic cross-user transfer via Postgres RPC (never two client writes).
+export async function transferOwnershipEntry(params: TransferParams): Promise<void> {
+  if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.transferOwnership(params);
 }

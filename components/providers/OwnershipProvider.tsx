@@ -3,25 +3,29 @@
 import {
   createContext,
   useContext,
-  useState,
   useEffect,
   useCallback,
   useMemo,
   type ReactNode,
 } from "react";
 import { AuthContext } from "@/components/providers/AuthProvider";
+import type { PurchaseRecord } from "@/lib/purchase-storage";
 import {
-  readPurchases,
-  addPurchase,
-  writePurchases,
-  type PurchaseRecord,
-} from "@/lib/purchase-storage";
-import { recordEventEntry } from "@/lib/repositories";
+  hydratePurchases,
+  disposePurchases,
+  getPurchasesEntry,
+  isOwnedEntry,
+  purchasesVersion,
+  addOwnershipEntry,
+  removeOwnershipEntry,
+  type PurchaseInsert,
+} from "@/lib/repositories";
+import { useDomainSubscription } from "@/lib/use-domain-subscription";
 
 export interface OwnershipContextValue {
   purchases: PurchaseRecord[];
   isOwned: (productId: string) => boolean;
-  addOwnership: (record: PurchaseRecord) => void;
+  addOwnership: (record: PurchaseInsert) => void;
   removeOwnership: (ownerEmail: string, productId: string) => void;
 }
 
@@ -34,65 +38,58 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
   const { user, setPurchaseHandler } = auth;
   const userEmail = user?.email ?? null;
 
-  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
-
-  // Hydrate from localStorage on login; clear React state on logout (storage survives).
+  // Lifecycle: hydrate/dispose the repo snapshot off the EXISTING auth
+  // login/logout transition. Invalidation on user change is MANDATORY — a stale
+  // snapshot leaking the previous user's purchases would be a security bug. The
+  // cleanup disposes before the next hydrate (user switch) and on unmount; the
+  // repo's own epoch guard discards any stale in-flight hydrate.
   useEffect(() => {
-    if (userEmail) {
-      setPurchases(readPurchases(userEmail));
-    } else {
-      setPurchases([]);
+    if (!userEmail) {
+      disposePurchases();
+      return;
     }
+    void hydratePurchases(userEmail).catch(() => {
+      // Hydration failure leaves an empty snapshot; nothing to surface.
+    });
+    return () => {
+      disposePurchases();
+    };
   }, [userEmail]);
 
-  const addOwnership = useCallback(
-    (record: PurchaseRecord) => {
-      setPurchases((prev) => [record, ...prev]);
+  // Reactive bridge: re-derive the current user's snapshot whenever the repo
+  // bumps its version. Exposes the SAME context API as before (no consumer
+  // changes).
+  const version = useDomainSubscription("purchases-changed", () => purchasesVersion());
 
-      if (userEmail) {
-        addPurchase(userEmail, record);
-      }
-
-      if (record.certificateId) {
-        // Best-effort, fire-and-forget: a failed event write must never affect
-        // ownership state above. addOwnership stays synchronous.
-        void recordEventEntry({
-          certificateId: record.certificateId,
-          eventType: "purchased",
-          actorType: "system",
-          metadata: { price: String(record.price) },
-        }).catch(() => {});
-      }
-    },
-    [userEmail]
+  const purchases = useMemo(
+    () => getPurchasesEntry(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version, userEmail]
   );
 
-  const removeOwnership = useCallback((ownerEmail: string, productId: string) => {
-    setPurchases((prev) => prev.filter((p) => p.productId !== productId));
-    if (ownerEmail) {
-      const updated = readPurchases(ownerEmail).filter((p) => p.productId !== productId);
-      writePurchases(ownerEmail, updated);
-    }
+  const isOwned = useCallback(
+    (productId: string) => isOwnedEntry(productId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version]
+  );
+
+  // Authoritative persist-first writes (async in the repo). Callers fire-and-
+  // forget; the UI reflects the change reactively once the repo emits.
+  const addOwnership = useCallback((record: PurchaseInsert) => {
+    void addOwnershipEntry(record).catch(() => {});
   }, []);
 
-  // Re-registers whenever addOwnership changes (i.e., on login/logout when userEmail changes).
+  const removeOwnership = useCallback((ownerEmail: string, productId: string) => {
+    void removeOwnershipEntry(ownerEmail, productId).catch(() => {});
+  }, []);
+
+  // Register the checkout handler for AuthProvider (unchanged contract).
   useEffect(() => {
     setPurchaseHandler(addOwnership);
     return () => {
       setPurchaseHandler(null);
     };
   }, [setPurchaseHandler, addOwnership]);
-
-  // O(1) owned lookup — recomputed only when purchases list changes.
-  const ownedIds = useMemo(
-    () => new Set(purchases.map((p) => p.productId)),
-    [purchases]
-  );
-
-  const isOwned = useCallback(
-    (productId: string) => ownedIds.has(productId),
-    [ownedIds]
-  );
 
   const value = useMemo(
     () => ({ purchases, isOwned, addOwnership, removeOwnership }),

@@ -2,10 +2,8 @@
 
 import { createContext, useContext, useState, useCallback, useRef } from "react";
 import type { MarketplaceListing, MarketplaceBid } from "@/lib/marketplace-types";
-import type { PurchaseRecord } from "@/lib/purchase-storage";
-import { OwnershipContext } from "@/components/providers/OwnershipProvider";
+import { transferOwnershipEntry } from "@/lib/repositories";
 import { useToast } from "@/components/ui/Toast";
-import { emitDomainEvent } from "@/lib/domain-events";
 
 export interface AuctionWinner {
   email: string;
@@ -38,7 +36,6 @@ export function useMarketplaceContext() {
 
 export default function MarketplaceProvider({ children }: { children: React.ReactNode }) {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
-  const ownership = useContext(OwnershipContext);
   const { show: showToast } = useToast();
 
   // Ref keeps latest listings accessible in stable callbacks without re-creating them
@@ -84,7 +81,7 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
   // Called ONLY after Stripe payment is confirmed.
   // Idempotent: sold listing is a no-op.
   const completeAuctionTransfer = useCallback(
-    (listingId: string, stripePaymentId: string) => {
+    async (listingId: string, stripePaymentId: string) => {
       const listing = listingsRef.current.find((l) => l.id === listingId);
       if (!listing || listing.status === "sold") return;
 
@@ -96,30 +93,35 @@ export default function MarketplaceProvider({ children }: { children: React.Reac
       const topBid = sorted[0];
       if (!topBid) return;
 
+      // Idempotency guard (listing status). The RPC is ALSO idempotent on
+      // payment_ref, so a double-fire cannot double-transfer.
       setListings((prev) =>
         prev.map((l) => l.id === listingId ? { ...l, status: "sold" as const } : l)
       );
 
       try {
-        ownership?.removeOwnership(listing.sellerEmail, listing.productId);
-        const record: PurchaseRecord = {
-          id: stripePaymentId,
+        // Atomic cross-user transfer via Postgres RPC: seller loses + buyer
+        // gains in ONE transaction (never two client-side writes). certificateId
+        // carried verbatim (#2); payment reference threaded (#3). Buyer/seller
+        // snapshots update via realtime.
+        await transferOwnershipEntry({
+          paymentRef: stripePaymentId,
+          certificateId: listing.certificateId,
           productId: listing.productId,
           productName: listing.productName,
-          certificateId: listing.certificateId,
-          txHash: stripePaymentId,
+          buyerEmail: topBid.bidderEmail,
+          sellerEmail: listing.sellerEmail,
           price: topBid.amount,
-          purchasedAt: new Date().toISOString(),
-          walletAddress: topBid.bidderWallet || undefined,
-        };
-        ownership?.addOwnership(record);
-        emitDomainEvent("purchases-changed");
+          buyerWallet: topBid.bidderWallet || undefined,
+          productImage: listing.image,
+          productDescription: "",
+        });
       } catch (err) {
         console.error(`completeAuctionTransfer failed for listing ${listingId}:`, err);
         showToast("Payment received but ownership transfer failed. Please contact support.");
       }
     },
-    [ownership, showToast]
+    [showToast]
   );
 
   // Marks a listing "ended" when there is no valid winner (no bids, reserve not met,

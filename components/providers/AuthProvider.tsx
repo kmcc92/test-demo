@@ -16,7 +16,7 @@ import {
   DEMO_MERCHANT,
   type AuthSession,
 } from "@/lib/auth-storage";
-import type { PurchaseRecord } from "@/lib/purchase-storage";
+import type { PurchaseInsert } from "@/lib/repositories";
 import type { CheckoutSession } from "@/lib/mock-checkout";
 import type { Product } from "@/lib/mock-data";
 import AuthModal from "@/components/auth/AuthModal";
@@ -32,7 +32,7 @@ export interface AuthContextValue {
   openCheckout: (product: Product) => void;
   // OwnershipProvider registers its addOwnership here so AuthProvider can call it
   // on checkout complete without circular dependencies.
-  setPurchaseHandler: (fn: ((record: PurchaseRecord) => void) | null) => void;
+  setPurchaseHandler: (fn: ((record: PurchaseInsert) => void) | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -50,10 +50,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   // Ref holds the OwnershipProvider's addOwnership function.
   // Using a ref avoids stale closures and doesn't trigger re-renders.
-  const purchaseHandlerRef = useRef<((record: PurchaseRecord) => void) | null>(null);
+  const purchaseHandlerRef = useRef<((record: PurchaseInsert) => void) | null>(null);
 
   const setPurchaseHandler = useCallback(
-    (fn: ((record: PurchaseRecord) => void) | null) => {
+    (fn: ((record: PurchaseInsert) => void) | null) => {
       purchaseHandlerRef.current = fn;
     },
     []
@@ -119,7 +119,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const handleCheckoutComplete = useCallback(
     (session: CheckoutSession, walletAddress: string | undefined) => {
       if (!user || !checkoutProduct) return;
-      const record: PurchaseRecord = {
+      const record: PurchaseInsert = {
         id: session.txHash,
         productId: checkoutProduct.id,
         productName: checkoutProduct.name,
@@ -128,8 +128,13 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         price: checkoutProduct.price,
         purchasedAt: session.timestamp,
         walletAddress,
+        // Snapshot the product presentation at purchase time so it survives
+        // product deletion (populates purchases.product_image/description).
+        productImage: checkoutProduct.images[0],
+        productDescription: checkoutProduct.description,
       };
-      // addOwnership in OwnershipProvider: updates state first, then persists.
+      // Routed to the purchases repo (persist-first Supabase insert). The write
+      // is async in the repo; the UI reflects it reactively once persisted.
       purchaseHandlerRef.current?.(record);
     },
     [user, checkoutProduct]
