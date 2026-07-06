@@ -1,23 +1,28 @@
 // Supabase-backed PURCHASES repository — the first PRIVATE, per-user domain.
 //
-// SECURITY (Step 10b Auth + Step 10c RLS): auth is REAL (Supabase JWT) and
-// purchases is RLS-PROTECTED. Server-side policies scope SELECT/INSERT/DELETE to
-// the caller's own rows (lower(email) = auth.jwt()->>'email'); cross-user
-// transfer is done by the SECURITY DEFINER transfer_ownership RPC, which bypasses
-// RLS. The email-based Realtime/query filtering below is now DEFENSE-IN-DEPTH on
-// top of RLS (kept intentionally) — it scopes what this UI fetches; the database
-// enforces the actual access boundary regardless of the client. See
-// supabase/rls_policies.sql.
+// SECURITY (Step 10b Auth + Step 10c RLS, Stage 6 uid migration): auth is REAL
+// (Supabase JWT) and purchases is RLS-PROTECTED. The CANONICAL owner key is now
+// auth.uid(): server-side policies scope SELECT/INSERT/DELETE to
+// user_id = auth.uid() (email policies remain only as DEPRECATED transitional
+// duplicates — see supabase/rls_policies.sql + supabase/uid_migration.sql).
+// Cross-user transfer is done by the SECURITY DEFINER transfer_ownership RPC,
+// which bypasses RLS; its buyer-row insert gets user_id from the DB trigger
+// (fill_user_id_from_email), so the RPC contract is unchanged. The uid-based
+// Realtime/query filtering below is DEFENSE-IN-DEPTH on top of RLS (kept
+// intentionally) — it scopes what this UI fetches; the database enforces the
+// actual access boundary regardless of the client.
 //
 // This module is the ONLY place the purchase snapshot exists. It privately owns:
 //   - snapshot: PurchaseRecord[]  — the CURRENT USER ONLY (single array, never
-//     Map<email,...>: retaining multiple users' private data in memory is a
+//     Map<uid,...>: retaining multiple users' private data in memory is a
 //     leak risk, so a single-user array is a deliberate security decision).
-//   - snapshotEmail: whose data the snapshot holds
+//   - snapshotUserId/snapshotEmail: whose data the snapshot holds. The uid is
+//     the SCOPING key (queries, realtime, guards); the email is kept ONLY as
+//     row-payload data (purchases.email column, transfer RPC params).
 //   - seenIds: Set<id> dedupe (PK = id, which is the payment reference)
 //   - ownedProductIds: Set for O(1) isOwned
 //   - version: monotonic, bumped only on observable change
-//   - realtime channel (filtered to the user's email — defense-in-depth over RLS)
+//   - realtime channel (filtered to the user's user_id — defense-in-depth over RLS)
 //   - epoch: bumped on every hydrate AND every write, to (a) discard a stale
 //     hydrate that resolves after a user switch, and (b) prevent an in-flight
 //     pre-write hydrate from clobbering a just-persisted local write.
@@ -67,9 +72,17 @@ type PurchaseRow = {
   product_description: string | null;
 };
 
+// The identity a hydrate is keyed on. id = auth.uid (canonical scoping key);
+// email is carried along only for row payloads (purchases.email, transfer RPC).
+export interface PurchaseUser {
+  id: string;
+  email: string;
+}
+
 // ---- Private module-scoped state (CURRENT USER ONLY) ----
 
 let snapshot: PurchaseRecord[] = [];
+let snapshotUserId: string | null = null;
 let snapshotEmail: string | null = null;
 const seenIds = new Set<string>();
 let ownedProductIds = new Set<string>();
@@ -120,6 +133,7 @@ function teardownRealtime(): void {
 function clearState(): void {
   teardownRealtime();
   snapshot = [];
+  snapshotUserId = null;
   snapshotEmail = null;
   seenIds.clear();
   ownedProductIds = new Set();
@@ -143,28 +157,29 @@ function removeById(id: string): void {
   bumpAndEmit();
 }
 
-function subscribeRealtime(email: string): void {
+function subscribeRealtime(userId: string): void {
   if (!client) return;
-  // Realtime filtered to the user's rows. This is defense-in-depth on top of
-  // RLS (Realtime also respects the SELECT policy, so the server only streams the
-  // caller's own rows regardless). The snapshotEmail guard drops any payload that
-  // arrives after a user switch.
+  // Realtime filtered to the user's rows by user_id (auth.uid). This is
+  // defense-in-depth on top of RLS (Realtime also respects the SELECT policy, so
+  // the server only streams the caller's own rows regardless). DELETE old-rows
+  // carry user_id because purchases has REPLICA IDENTITY FULL (uid_migration).
+  // The snapshotUserId guard drops any payload that arrives after a user switch.
   realtimeChannel = client
-    .channel(`purchases-${email}`)
+    .channel(`purchases-${userId}`)
     .on(
       "postgres_changes",
-      { event: "INSERT", schema: "public", table: TABLE, filter: `email=eq.${email}` },
+      { event: "INSERT", schema: "public", table: TABLE, filter: `user_id=eq.${userId}` },
       (payload) => {
-        if (snapshotEmail !== email) return;
+        if (snapshotUserId !== userId) return;
         const row = payload.new as unknown as PurchaseRow;
         if (row && row.id) applyPurchase(rowToRecord(row));
       }
     )
     .on(
       "postgres_changes",
-      { event: "DELETE", schema: "public", table: TABLE, filter: `email=eq.${email}` },
+      { event: "DELETE", schema: "public", table: TABLE, filter: `user_id=eq.${userId}` },
       (payload) => {
-        if (snapshotEmail !== email) return;
+        if (snapshotUserId !== userId) return;
         const old = payload.old as unknown as Partial<PurchaseRow>;
         if (old && old.id) removeById(old.id);
       }
@@ -176,7 +191,7 @@ export interface PurchaseSupabaseRepo {
   getPurchases(): PurchaseRecord[];
   isOwned(productId: string): boolean;
   version(): number;
-  hydrate(email: string): Promise<void>;
+  hydrate(user: PurchaseUser): Promise<void>;
   dispose(): void;
   addOwnership(record: PurchaseInsert): Promise<void>;
   removeOwnership(email: string, productId: string): Promise<void>;
@@ -197,22 +212,23 @@ export const supabasePurchaseRepo: PurchaseSupabaseRepo = {
     return currentVersion;
   },
 
-  async hydrate(email) {
-    if (!email) {
+  async hydrate(user) {
+    if (!user || !user.id) {
       this.dispose();
       return;
     }
+    const { id: userId, email } = user;
     const myEpoch = ++epoch;
 
     // User change: clear the previous user's data IMMEDIATELY (never let it
     // linger while the new fetch is in flight — security).
-    if (snapshotEmail !== null && snapshotEmail !== email) {
+    if (snapshotUserId !== null && snapshotUserId !== userId) {
       clearState();
       bumpAndEmit();
     }
 
     const supabase = await getClient();
-    const { data, error } = await supabase.from(TABLE).select(COLUMNS).eq("email", email);
+    const { data, error } = await supabase.from(TABLE).select(COLUMNS).eq("user_id", userId);
     if (error) throw error;
 
     // STALE-HYDRATION GUARD: a newer hydrate (user switch) or a local write
@@ -229,8 +245,9 @@ export const supabasePurchaseRepo: PurchaseSupabaseRepo = {
     seenIds.clear();
     snapshot.forEach((p) => seenIds.add(p.id));
     rebuildOwned();
+    snapshotUserId = userId;
     snapshotEmail = email;
-    subscribeRealtime(email);
+    subscribeRealtime(userId);
     bumpAndEmit();
   },
 
@@ -244,11 +261,15 @@ export const supabasePurchaseRepo: PurchaseSupabaseRepo = {
     if (!record.txHash) {
       throw new Error("addOwnership requires a payment reference (txHash).");
     }
+    const userId = snapshotUserId;
     const email = snapshotEmail;
-    if (!email) {
+    if (!userId || !email) {
       throw new Error("addOwnership: no active user (snapshot not hydrated).");
     }
     const supabase = await getClient();
+    // user_id is intentionally NOT sent: the DB trigger derives it from email
+    // (authoritative — a client-sent uid would be overwritten anyway) and the
+    // uid RLS policy verifies the result equals auth.uid().
     const { error } = await supabase.from(TABLE).insert({
       id: record.id,
       email,
@@ -279,11 +300,18 @@ export const supabasePurchaseRepo: PurchaseSupabaseRepo = {
   },
 
   async removeOwnership(email, productId) {
+    // Scoped by user_id (canonical) — the email param is kept for the public
+    // signature but the hydrated uid is what the delete is keyed on. RLS
+    // enforces the same boundary server-side regardless.
+    const userId = snapshotUserId;
+    if (!userId) {
+      throw new Error("removeOwnership: no active user (snapshot not hydrated).");
+    }
     const supabase = await getClient();
     const { error } = await supabase
       .from(TABLE)
       .delete()
-      .eq("email", email)
+      .eq("user_id", userId)
       .eq("product_id", productId);
     if (error) throw error;
 

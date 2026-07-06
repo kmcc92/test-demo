@@ -1,20 +1,21 @@
 // Supabase-backed SERVICE REQUESTS repository — the refurbish/replace workflow
 // domain for authenticated pieces.
 //
-// GLOBAL public-workflow data (NOT user-scoped): the service_requests table has
-// NO owner/email column, and the merchant dashboard reads EVERY request. So this
-// reuses the merchant-products / registry pattern — module-scoped snapshot, a
-// lifecycle provider, hydrate-once, unfiltered Realtime keeps it fresh. NO
-// user-scoping, NO epoch guard, NO privacy machinery (unlike purchases).
+// WORKFLOW data with SERVER-SIDE visibility (Stage 6): rows carry user_id
+// (DEFAULT auth.uid() — the requesting customer) and RLS scopes what each caller
+// sees, so this module keeps the merchant-products / registry pattern —
+// module-scoped snapshot, a lifecycle provider, hydrate-once, unfiltered
+// Realtime — but the snapshot now holds ONLY the rows the CALLER is allowed to
+// see: the merchant (public.merchants role) hydrates the whole queue; a customer
+// hydrates their own requests (+ legacy pre-migration rows). Realtime respects
+// the same SELECT policy, so the stream is trimmed identically.
 //
-// SECURITY (Step 10b Auth + Step 10c RLS): auth is REAL and RLS is ON, but this
-// domain is only partially isolated. RLS scopes service_requests to AUTHENTICATED
-// users (anon is denied) — so login is required to read or write. However, the
-// table has NO owner column and the merchant reads ALL requests (global design),
-// so RLS CANNOT restrict a row to a single user: any authenticated user can query
-// every request via the API. This is an ACCEPTED, DOCUMENTED limitation — true
-// per-user isolation needs an owner column + a server-visible merchant role (a
-// future step). See supabase/rls_policies.sql.
+// SECURITY (Step 10c RLS + Stage 6 uid migration): the former "any authenticated
+// user can query every request" gap is CLOSED at the DB layer. Legacy rows
+// (user_id NULL — the table had no owner/email column, so no backfill was
+// possible) remain visible to all authenticated users, matching their
+// pre-migration exposure. See supabase/rls_policies.sql +
+// supabase/uid_migration.sql.
 //
 // CRUD domain (status mutates through a lifecycle: pending → quoted → accepted →
 // paid → completed | denied | cancelled), so the dedup strategy is Map

@@ -19,13 +19,13 @@ import CheckoutModal from "@/components/checkout/CheckoutModal";
 // STEP 10b — REAL AUTHENTICATION (Supabase Auth). Step 10c added AUTHORIZATION.
 //
 // AUTH IS REAL: email/password credentials are verified by Supabase GoTrue.
-// AUTHORIZATION IS NOW ENFORCED by RLS (Step 10c): the app's single anon-key
-// client carries the signed-in user's JWT, so server-side policies scope access
-// by auth.jwt()->>'email' (see supabase/rls_policies.sql). Repositories still
-// receive an EMAIL and are architecturally unchanged; the canonical auth.uid is
-// exposed as user.id but repos are not yet keyed on it (email→uid migration is a
-// later step). Residual gap: service_requests is authenticated-read-all (no owner
-// column) — documented in its repo header.
+// AUTHORIZATION IS NOW ENFORCED by RLS (Step 10c, Stage 6 uid migration): the
+// app's single anon-key client carries the signed-in user's JWT, and server-side
+// policies scope access canonically by user_id = auth.uid() (email policies are
+// DEPRECATED transitional duplicates — see supabase/rls_policies.sql +
+// supabase/uid_migration.sql). Purchases hydration is keyed on user.id (the
+// auth.uid); email rides along for row payloads. The former service_requests
+// authenticated-read-all gap is closed (user_id + merchants role table).
 //
 // Feature flag parity with the domain migrations. When false, auth is DISABLED
 // (no user, no fake fallback — the fake localStorage auth has been removed).

@@ -10,6 +10,7 @@ import { supabaseCertificateEventsRepo } from "./supabase/certificateEventsRepo"
 import {
   supabasePurchaseRepo,
   type PurchaseInsert,
+  type PurchaseUser,
   type TransferParams,
 } from "./supabase/purchaseRepo";
 import {
@@ -51,7 +52,7 @@ export type {
   ServiceRequestUpdate,
 } from "./supabase/serviceRequestRepo";
 
-export type { PurchaseInsert, TransferParams } from "./supabase/purchaseRepo";
+export type { PurchaseInsert, PurchaseUser, TransferParams } from "./supabase/purchaseRepo";
 import { getCertificateFromRegistry, registerCertificate } from "@/lib/certificate-registry";
 import type { RegisteredCertificate } from "@/lib/certificate-registry";
 import {
@@ -334,8 +335,10 @@ export function purchasesVersion(): number {
   return USE_SUPABASE_PURCHASES ? supabasePurchaseRepo.version() : 0;
 }
 
-export async function hydratePurchases(email: string): Promise<void> {
-  if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.hydrate(email);
+// Stage 6: hydration is keyed on auth.uid (user.id); email rides along only for
+// row payloads (purchases.email column, transfer RPC params).
+export async function hydratePurchases(user: PurchaseUser): Promise<void> {
+  if (USE_SUPABASE_PURCHASES) await supabasePurchaseRepo.hydrate(user);
 }
 
 export function disposePurchases(): void {

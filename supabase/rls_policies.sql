@@ -1,6 +1,10 @@
 -- =============================================================================
--- TEST — Phase 5 Step 10c: Row-Level Security
+-- TEST — Phase 5 Step 10c: Row-Level Security (+ Stage 6 auth.uid migration)
 -- =============================================================================
+-- PREREQUISITE (Stage 6): run supabase/uid_migration.sql FIRST — the policies
+-- below reference user_id columns and public.is_merchant(), which that script
+-- creates. This script fails loudly (undefined column/function) if run early.
+--
 -- Run this ENTIRE script in the Supabase SQL Editor (Dashboard → SQL Editor).
 -- It is IDEMPOTENT and re-runnable: every policy is DROP-IF-EXISTS then CREATE,
 -- and ENABLE ROW LEVEL SECURITY is a no-op when already enabled. Policies are
@@ -8,17 +12,23 @@
 -- out.
 --
 -- AUTH MODEL: real Supabase Auth (Step 10b). The app uses ONE anon-key client
--- that carries the signed-in user's JWT, so auth.jwt()->>'email' identifies the
--- caller. Logged-out visitors send the `anon` role. service_role (server/admin)
--- and SECURITY DEFINER functions BYPASS RLS.
+-- that carries the signed-in user's JWT. Stage 6: the CANONICAL owner key is
+-- auth.uid() against each table's user_id column (populated by uid_migration's
+-- backfill + insert triggers). The original auth.jwt()->>'email' policies are
+-- kept alongside, clearly marked DEPRECATED — permissive policies OR together,
+-- so during the transition a row is accessible if EITHER key matches. Remove
+-- the DEPRECATED block of each table after the uid path is verified (two-account
+-- isolation checklist). Logged-out visitors send the `anon` role. service_role
+-- (server/admin) and SECURITY DEFINER functions BYPASS RLS.
 --
 -- DESIGN NOTES / deviations from a naive per-table plan (see Step 10c diagnostic):
 --   * Global storefront + /verify are browsable LOGGED OUT → global tables get
 --     PUBLIC (anon+authenticated) SELECT, not authenticated-only.
---   * Merchant role is NOT in the JWT (email allowlist is client-side). Merchant
---     writes are enforced as `merchant_id = auth email` on merchant_products
---     (the merchant_id column IS populated with the merchant's email). It is the
---     same allowlist rule, now enforced server-side.
+--   * Merchant role: Stage 6 adds public.merchants (uid role table) +
+--     is_merchant() so policies can grant the merchant server-side. On
+--     merchant_products, writes are canonically scoped by user_id = auth.uid()
+--     (filled from merchant_id, which holds the merchant's email); the direct
+--     email comparison remains only as a DEPRECATED transitional policy.
 --   * certificates.merchant_id is NULL in the app (registration never passes it),
 --     so certificates INSERT is scoped to `authenticated` (no anon writes) rather
 --     than to a merchant — identity is immutable (no UPDATE/DELETE policy).
@@ -27,15 +37,15 @@
 --     INSERT is scoped to the seller.
 --   * certificate_status has no owner column and is written by owner AND merchant
 --     → writes are `authenticated`.
---   * service_requests has NO owner column and the merchant reads ALL of them
---     (Step 9 global design) → SELECT/INSERT/UPDATE are `authenticated`.
---     ⚠ LIMITATION (accepted, documented): service requests are NOT per-user
---     isolated at the DB layer — any authenticated user can query all rows.
---     True isolation needs an owner column + role-in-JWT (a future step).
+--   * service_requests: Stage 6 CLOSES the Step 9 gap — rows now carry user_id
+--     (DEFAULT auth.uid()) and are per-user isolated; the merchant (is_merchant())
+--     reads/updates the whole queue. Legacy rows (user_id NULL, unattributable —
+--     the table never had an email column) stay globally visible to authenticated
+--     users, matching their pre-migration exposure.
 --   * purchases: SECURITY DEFINER `transfer_ownership` performs the cross-user
 --     buyer-insert + seller-delete and BYPASSES these policies (verified in
 --     dashboard). Direct client writes (regular checkout / remove) are scoped to
---     the owner's own email.
+--     the owner's user_id = auth.uid() (email policies DEPRECATED).
 --   * marketplace_bids is unused by the app (bids are still session-only — out of
 --     scope). Policies here are PROVISIONAL, added only so the table is not an
 --     open door; revisit when bids are migrated.
@@ -122,12 +132,35 @@ drop policy if exists merchant_products_select_all       on public.merchant_prod
 drop policy if exists merchant_products_insert_merchant  on public.merchant_products;
 drop policy if exists merchant_products_update_merchant  on public.merchant_products;
 drop policy if exists merchant_products_delete_merchant  on public.merchant_products;
+drop policy if exists merchant_products_insert_uid       on public.merchant_products;
+drop policy if exists merchant_products_update_uid       on public.merchant_products;
+drop policy if exists merchant_products_delete_uid       on public.merchant_products;
 
 create policy merchant_products_select_all
   on public.merchant_products for select
   to anon, authenticated
   using (true);
 
+-- Canonical uid scoping. user_id is filled by the insert trigger (from
+-- merchant_id, which holds the merchant's email) — the client sends no uid.
+create policy merchant_products_insert_uid
+  on public.merchant_products for insert
+  to authenticated
+  with check (user_id = (select auth.uid()));
+
+create policy merchant_products_update_uid
+  on public.merchant_products for update
+  to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+create policy merchant_products_delete_uid
+  on public.merchant_products for delete
+  to authenticated
+  using (user_id = (select auth.uid()));
+
+-- DEPRECATED (email-based) — remove after uid verification. While present,
+-- writes pass if EITHER the email OR the uid policy matches.
 create policy merchant_products_insert_merchant
   on public.merchant_products for insert
   to authenticated
@@ -153,12 +186,21 @@ alter table public.merchant_products enable row level security;
 drop policy if exists marketplace_listings_select_all     on public.marketplace_listings;
 drop policy if exists marketplace_listings_insert_seller   on public.marketplace_listings;
 drop policy if exists marketplace_listings_update_auth      on public.marketplace_listings;
+drop policy if exists marketplace_listings_insert_uid       on public.marketplace_listings;
 
 create policy marketplace_listings_select_all
   on public.marketplace_listings for select
   to anon, authenticated
   using (true);
 
+-- Canonical uid scoping. user_id (the seller's uid) is filled by the insert
+-- trigger from seller_email.
+create policy marketplace_listings_insert_uid
+  on public.marketplace_listings for insert
+  to authenticated
+  with check (user_id = (select auth.uid()));
+
+-- DEPRECATED (email-based) — remove after uid verification.
 create policy marketplace_listings_insert_seller
   on public.marketplace_listings for insert
   to authenticated
@@ -175,13 +217,38 @@ create policy marketplace_listings_update_auth
 alter table public.marketplace_listings enable row level security;
 
 -- -----------------------------------------------------------------------------
--- purchases  — PRIVATE, per-user (email). Cross-user transfer is done by the
---   SECURITY DEFINER transfer_ownership RPC, which BYPASSES these policies.
+-- purchases  — PRIVATE, per-user (auth.uid canonical; email DEPRECATED).
+--   Cross-user transfer is done by the SECURITY DEFINER transfer_ownership RPC,
+--   which BYPASSES these policies (its buyer-row insert gets user_id from the
+--   fill_user_id_from_email trigger — see uid_migration.sql).
 -- -----------------------------------------------------------------------------
 drop policy if exists purchases_select_owner  on public.purchases;
 drop policy if exists purchases_insert_owner  on public.purchases;
 drop policy if exists purchases_delete_owner  on public.purchases;
+drop policy if exists purchases_select_uid    on public.purchases;
+drop policy if exists purchases_insert_uid    on public.purchases;
+drop policy if exists purchases_delete_uid    on public.purchases;
 
+-- Canonical uid scoping.
+create policy purchases_select_uid
+  on public.purchases for select
+  to authenticated
+  using (user_id = (select auth.uid()));
+
+create policy purchases_insert_uid
+  on public.purchases for insert
+  to authenticated
+  with check (user_id = (select auth.uid()));
+
+create policy purchases_delete_uid
+  on public.purchases for delete
+  to authenticated
+  using (user_id = (select auth.uid()));
+
+-- DEPRECATED (email-based) — remove after uid verification. While present, a
+-- row is accessible if EITHER the email OR the uid policy matches (permissive
+-- policies OR together). Legacy rows whose email never registered in auth.users
+-- keep user_id NULL and remain reachable ONLY through these policies.
 create policy purchases_select_owner
   on public.purchases for select
   to authenticated
@@ -236,28 +303,53 @@ $$;
 grant execute on function public.archive_public() to anon, authenticated;
 
 -- -----------------------------------------------------------------------------
--- service_requests  — GLOBAL among AUTHENTICATED users (no owner column; the
---   merchant reads all, the customer filters client-side). NOT anon-readable.
---   ⚠ NOT per-user isolated at the DB layer — see limitation note in header.
+-- service_requests  — Stage 6: PER-USER isolated (closes the Step 9/10c gap).
+--   Owner = user_id (DEFAULT auth.uid() on insert — the requesting customer).
+--   The MERCHANT (public.merchants role table, is_merchant()) reads and updates
+--   ALL requests — that is the workflow (quote/deny/complete). Customers see and
+--   update only their own rows (accept/decline/pay). NOT anon-readable.
+--
+--   ⚠ The pre-Stage-6 open policies (using (true)) are REPLACED, not kept:
+--   keeping them alongside would OR-away all isolation. Legacy rows have
+--   user_id NULL (the table had no owner/email column, so no backfill is
+--   possible); the `user_id is null` clause keeps them visible/updatable by any
+--   authenticated user — exactly the pre-migration behavior, for those rows
+--   only. New rows are isolated from day one.
 -- -----------------------------------------------------------------------------
 drop policy if exists service_requests_select_auth  on public.service_requests;
 drop policy if exists service_requests_insert_auth  on public.service_requests;
 drop policy if exists service_requests_update_auth  on public.service_requests;
+drop policy if exists service_requests_select_uid   on public.service_requests;
+drop policy if exists service_requests_insert_uid   on public.service_requests;
+drop policy if exists service_requests_update_uid   on public.service_requests;
 
-create policy service_requests_select_auth
+create policy service_requests_select_uid
   on public.service_requests for select
   to authenticated
-  using (true);
+  using (
+    user_id = (select auth.uid())
+    or user_id is null            -- legacy pre-migration rows (unattributable)
+    or public.is_merchant()      -- merchant works the whole queue
+  );
 
-create policy service_requests_insert_auth
+create policy service_requests_insert_uid
   on public.service_requests for insert
   to authenticated
-  with check (true);
+  with check (user_id = (select auth.uid()));  -- DEFAULT auth.uid() fills it
 
-create policy service_requests_update_auth
+create policy service_requests_update_uid
   on public.service_requests for update
   to authenticated
-  using (true) with check (true);
+  using (
+    user_id = (select auth.uid())
+    or user_id is null
+    or public.is_merchant()
+  )
+  with check (
+    user_id = (select auth.uid())
+    or user_id is null
+    or public.is_merchant()
+  );
 -- (no DELETE policy → the app never deletes service requests)
 
 alter table public.service_requests enable row level security;
@@ -268,12 +360,20 @@ alter table public.service_requests enable row level security;
 -- -----------------------------------------------------------------------------
 drop policy if exists marketplace_bids_select_all    on public.marketplace_bids;
 drop policy if exists marketplace_bids_insert_bidder on public.marketplace_bids;
+drop policy if exists marketplace_bids_insert_uid    on public.marketplace_bids;
 
 create policy marketplace_bids_select_all
   on public.marketplace_bids for select
   to anon, authenticated
   using (true);
 
+-- Canonical uid scoping (user_id filled by the insert trigger from bidder_email).
+create policy marketplace_bids_insert_uid
+  on public.marketplace_bids for insert
+  to authenticated
+  with check (user_id = (select auth.uid()));
+
+-- DEPRECATED (email-based) — remove after uid verification.
 create policy marketplace_bids_insert_bidder
   on public.marketplace_bids for insert
   to authenticated
@@ -296,6 +396,21 @@ alter table public.marketplace_bids enable row level security;
 --    select proname, prosecdef from pg_proc where proname = 'transfer_ownership';
 --    -- prosecdef must be TRUE. If FALSE, cross-user auction transfers will fail
 --    -- under RLS (the buyer's client cannot delete the seller's purchase row).
+
+-- =============================================================================
+-- CLEANUP — run ONLY after the uid path passes the two-account isolation
+-- checklist. Removes the DEPRECATED email-based policies (pastes cleanly).
+-- =============================================================================
+-- drop policy if exists purchases_select_owner              on public.purchases;
+-- drop policy if exists purchases_insert_owner              on public.purchases;
+-- drop policy if exists purchases_delete_owner              on public.purchases;
+-- drop policy if exists merchant_products_insert_merchant   on public.merchant_products;
+-- drop policy if exists merchant_products_update_merchant   on public.merchant_products;
+-- drop policy if exists merchant_products_delete_merchant   on public.merchant_products;
+-- drop policy if exists marketplace_listings_insert_seller  on public.marketplace_listings;
+-- drop policy if exists marketplace_bids_insert_bidder      on public.marketplace_bids;
+-- NOTE: after dropping purchases_select_owner, any purchases row whose email
+-- never registered in auth.users (user_id NULL) becomes unreachable by clients.
 
 -- =============================================================================
 -- ROLLBACK (only if RLS must be lifted — pastes cleanly)

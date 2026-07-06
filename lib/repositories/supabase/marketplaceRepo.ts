@@ -15,9 +15,12 @@
 // snapshot, lifecycle provider, hydrate-once, realtime keeps it fresh). NO
 // user-scoping, NO epoch guard, NO privacy machinery.
 //
-// SECURITY (Step 10b Auth + Step 10c RLS): auth is REAL and RLS is ON. Listings
-// are PUBLIC read (the storefront is browsable logged-out). INSERT is scoped
-// server-side to the seller (lower(seller_email) = auth email). UPDATE is open to
+// SECURITY (Step 10b Auth + Step 10c RLS, Stage 6 uid migration): auth is REAL
+// and RLS is ON. Listings are PUBLIC read (the storefront is browsable
+// logged-out). INSERT is scoped server-side to the seller — canonically
+// user_id = auth.uid(), where user_id is derived from seller_email by a DB
+// trigger (this repo sends no uid; the email policy remains as a DEPRECATED
+// transitional duplicate). UPDATE is open to
 // any authenticated user BY DESIGN — the status lifecycle (active→ended/sold) is
 // finalized by the winning BUYER (mark sold) and by any VIEWER (settle→ended on
 // expiry), not the seller. See supabase/rls_policies.sql.

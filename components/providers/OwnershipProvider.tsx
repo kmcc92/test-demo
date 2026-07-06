@@ -36,6 +36,7 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
   if (!auth) throw new Error("OwnershipProvider must be inside AuthProvider");
 
   const { user, setPurchaseHandler } = auth;
+  const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
 
   // Lifecycle: hydrate/dispose the repo snapshot off the EXISTING auth
@@ -43,18 +44,20 @@ export default function OwnershipProvider({ children }: { children: ReactNode })
   // snapshot leaking the previous user's purchases would be a security bug. The
   // cleanup disposes before the next hydrate (user switch) and on unmount; the
   // repo's own epoch guard discards any stale in-flight hydrate.
+  // Stage 6: hydration is keyed on auth.uid (userId); email rides along for
+  // row payloads only.
   useEffect(() => {
-    if (!userEmail) {
+    if (!userId || !userEmail) {
       disposePurchases();
       return;
     }
-    void hydratePurchases(userEmail).catch(() => {
+    void hydratePurchases({ id: userId, email: userEmail }).catch(() => {
       // Hydration failure leaves an empty snapshot; nothing to surface.
     });
     return () => {
       disposePurchases();
     };
-  }, [userEmail]);
+  }, [userId, userEmail]);
 
   // Reactive bridge: re-derive the current user's snapshot whenever the repo
   // bumps its version. Exposes the SAME context API as before (no consumer
