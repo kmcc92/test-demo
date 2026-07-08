@@ -1,78 +1,66 @@
 # TEST Platform — CLAUDE.md
 
 ## Identity
-- **Name:** TEST (luxury fashion authentication → "Shopify for designers")
-- **Stack:** Next.js 16.2.6 App Router + TypeScript + Tailwind + Framer Motion + wagmi + viem
-- **Live:** https://test-demo-lyart-one.vercel.app
-- **GitHub:** https://github.com/kmcc92/test-demo
-- **Local:** C:\Users\Kevin\test-demo
-- **Shell:** Windows PowerShell (`;` for chaining, no bash here-docs, `Remove-Item -Path -Recurse -Force`)
+- Name: TEST
+- Stack: Next.js + TypeScript + Tailwind + Framer Motion + Supabase + Stripe
+- Local: C:\Users\Kevin\test-demo
+- Live: https://test-demo-lyart-one.vercel.app
+
+## Current status
+- Stage 5 complete: certificates, status, events, purchases, merchant products, service requests, marketplace listings, real Supabase Auth, and RLS.
+- Stage 6 underway: provenance + blockchain-backed verification + public anonymous verification.
+
+## Agent operating rules
+- Read the relevant files before editing; do not guess architecture.
+- Follow the existing repo pattern: snapshot + hydrate/dispose + version + realtime + index accessors; see lib/repositories/supabase/certificateRegistryRepo.ts as the canonical example.
+- Prefer the smallest reversible change that completes the requested task.
+- Keep public surfaces privacy-safe; never expose email, wallet_address, or tx_hash on /library or /verify.
+- Preserve legacy storage modules as fallback paths until the new repos are fully verified.
+- Verify changes with the relevant command before claiming success.
+
+## Working priorities
+- Persist-first writes: succeed in Supabase before updating local snapshot or event state.
+- Keep the UI synchronous through repo-backed snapshots and index accessors.
+- Prefer existing providers and hooks over introducing parallel state paths.
+- Avoid broad rewrites when a targeted fix will do.
+
+## Stage 6 scope
+- Stage 6: provenance + blockchain verification; see TODO.md for the breakdown.
+
+## Schema summary
+- certificates: primary certificate identity rows; referenced by status, events, purchases, listings, and requests.
+- certificate_status: one status row per certificate; tracks active/flagged/lost/stolen state.
+- certificate_events: append-only event ledger per certificate; used for ownership and status history.
+- purchases: private, owner-scoped purchase rows; linked to certificates and payment metadata.
+- merchant_products: public catalog rows; linked to merchant identity and certificate registration.
+- service_requests: request workflow rows; linked to certificate_id and merchant-facing operations.
+- marketplace_listings: public resale listings; linked to certificate_id and seller metadata.
+- marketplace_bids: provisional bid rows for auction flow; linked to marketplace_listings.
+- ownership_transfers: Stage 6 target table for append-only transfer history.
+
+## Blockchain context
+- Intended proof layer: Polygon-compatible certificate verification; keep the current mock path intact until real contracts are deployed.
+- Tooling: if Solidity is introduced, start with Foundry unless the team explicitly prefers Hardhat or thirdweb.
+- Wallet strategy: use the existing wagmi/viem flow in lib/wallet-config.ts and hooks; do not mix wallet auth with Supabase auth.
+- Testnet: prefer Polygon Amoy for staging; keep contract addresses in env/config, not hard-coded in UI.
+- Deployment config: store contract addresses in a single config file or env entry so the app can swap between mock, testnet, and mainnet cleanly.
+
+## File map
+- lib/repositories/ and lib/repositories/supabase/: repo layer, snapshots, hydration, realtime, and Supabase-backed persistence.
+- components/providers/: auth, ownership, wallet, and lifecycle providers.
+- hooks/: wallet, auth, marketplace, purchase, and ownership hooks.
+- app/: route entry points such as /library, /verify, /auctions, and /merchant.
+- supabase/: SQL policies and schema changes that must be applied in the Supabase dashboard.
 
 ## Commands
-```
-# Dev
-npm run dev
+- Dev: npm run dev
+- Tests: npm test
+- Commit/push: git status ; git add <files> ; git commit -m "msg" ; git push
+- Prod deploy: human review first; only deploy to production after explicit approval
+- Shell note: this repo is used from PowerShell on Windows, so use ; between commands; bash syntax such as && may fail in some terminals
 
-# Test (Vitest, 22 tests, 7 invariants)
-npm test
-
-# Deploy
-git add . ; git commit -m "msg" ; git push ; npx vercel --prod
-
-# Kill stale servers
-Get-Process node | Stop-Process -Force
-```
-
-## Current Phase
-**Phase 5 — Supabase Migration (in progress)**
-- Steps 1–9 ✅ (certificates, status, events, purchases, merchant products, /library, /collection, service requests)
-- Step 10a ✅ Marketplace **listings** persisted (bids still session)
-- Step 10b ✅ **Real Supabase Auth** (email/password identity)
-- Step 10c ✅ **RLS enabled** (real authorization; run `supabase/rls_policies.sql`)
-- **NEXT ⏳ Marketplace bids (`marketplace_bids`)**, then email→auth.uid repo scoping
-
-## Supabase Setup
-- **Region:** ca-central-1 (Canada), free tier
-- **Env:** `.env.local` + Vercel Production (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
-- **URL format:** bare `https://<ref>.supabase.co` (not dashboard host, not `/rest/v1/`)
-- **Tables:** certificates, certificate_status, certificate_events, service_requests, purchases, merchant_products, marketplace_listings, marketplace_bids
-- **RPC:** `transfer_ownership` (atomic, SECURITY DEFINER, idempotent on payment_ref)
-- **RLS:** ON (Step 10c) — policies in `supabase/rls_policies.sql` (run in SQL Editor). Global tables = public read; purchases = owner-scoped; service_requests = authenticated-read-all (no owner column, documented gap); merchant_products = merchant_id-scoped writes; `transfer_ownership` + `archive_public()` are SECURITY DEFINER (bypass RLS)
-- **Realtime:** must enable per-table in Dashboard → Database → Replication
-- **Flags (all true):** USE_SUPABASE_CERTIFICATES, USE_SUPABASE_STATUS, USE_SUPABASE_EVENTS, USE_SUPABASE_PURCHASES, USE_SUPABASE_MERCHANT_PRODUCTS, USE_SUPABASE_SERVICE_REQUESTS, USE_SUPABASE_MARKETPLACE; global USE_SUPABASE stays false
-
-## Repository-Snapshot Pattern (every domain follows this)
-- **Repo owns:** module-scoped snapshot + `hydrate()` + `dispose()` + `version()` + Realtime subscription + domain event emission
-- **Provider:** lifecycle only (hydrate on mount, dispose on unmount)
-- **Consumer:** reads snapshot synchronously via index accessors
-- **Global domains** (certs, status, events, merchant products): module-scoped, no user-scoping
-- **User-scoped domains** (purchases): single-user array, email-filtered hydration, epoch guard, dispose on logout
-
-## Write Semantics
-- **Authoritative persist-first:** Supabase write succeeds BEFORE snapshot/event update
-- **Coupled writes** in `index.ts` (not repos): primary authoritative, secondary best-effort
-- **23505 handling:** append-only domains (events/purchases) = idempotent success; CRUD (merchant products) = surface conflict unless same logical entity
-
-## Identity Protection Boundary
-- Certificate identity ≠ ownership ≠ status annotations — kept distinct
-- Public surfaces (`/library`, `/verify`) NEVER expose: email, wallet_address, tx_hash
-- Price IS public (core value prop)
-- **Enforced by RLS (Step 10c):** purchases owner-scoped; `/library` reads the `archive_public()` SECURITY DEFINER fn (public columns only). Residual gap: service_requests is authenticated-read-all (no owner column) — documented
-
-## Auth (REAL — Supabase GoTrue email/password, as of Step 10b)
-- Authentication is REAL; **authorization is NOT** (RLS off, repos email-keyed, anon key unrestricted — do not claim user data is protected)
-- Merchant role = email allowlist: `merchant@test.com` → merchant, any other email → buyer (derived on session restore, persists through refresh)
-- **Demo merchant:** `merchant@test.com` / `merchant123` (pre-created, email confirmed — change pw in dashboard if desired). Customers self-register.
-- Email confirmation is DISABLED in the dashboard (Auth → Providers → Email) so signup is instant; code falls back gracefully if re-enabled
-- Session owned by Supabase (its own localStorage key + auto-refresh); all auth calls live in `AuthProvider` only; `USE_SUPABASE_AUTH = true`
-- Password reset = TODO
-- Stripe test cards: `4242 4242 4242 4242` (success), `4000 0000 0000 0002` (decline)
-
-## Testing Rules
-- ALWAYS test in fresh non-incognito session on canonical URL (stale bundles mask working migrations)
-- Enable Realtime per-table before testing cross-device push
-
-## Key Constraints
-- `mock-verify` `getMockCertificate` fallback for legacy static IDs (TEST-GOLD-001/002)
-- LWW on merchant products — no `updated_at` until Phase 7
-- Product creation registers certificate first (durable identity before mutable listing); cert-fail aborts; product-fail after cert = acceptable orphan
+## Constraints
+- Run supabase/rls_policies.sql in the Supabase SQL Editor after schema changes.
+- Enable Realtime per table before testing cross-device updates.
+- Marketplace bids and provenance are still being migrated; treat them as provisional until completed.
+- Backlog items belong in TODO.md or GitHub issues, not in this file.

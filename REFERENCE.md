@@ -1,89 +1,56 @@
-# TEST Platform — Reference Doc
-> Paste relevant sections to Claude Code only when working on that specific area.
+# TEST Platform — Reference
+> Paste only the relevant sections when working on a specific area.
 
----
+## Vision
+TEST is a multi-designer marketplace for blockchain-verified fashion pieces. Designers can sell, service, and prove ownership over time; buyers receive permanent certificates and public verification.
 
-## Full Vision
-Multi-designer platform ("Shopify for designers"): independent designers sell blockchain-verified fashion pieces, every purchase mints permanent on-chain certificate (Polygon), NFC chips link to /verify, designers provide lifetime service (refurbish/replace/resize), live-streamed fashion competitions with real-time auctions, permanent verifiable library of everything ever sold, designers integrate their own websites via API/widgets.
+## Current state
+- Stage 5 is complete.
+- Stage 6 has begun.
 
----
+## What Stage 5 delivered
+- Certificate domain: registry, status, events, and public-safe library views.
+- Purchases: user-scoped ownership snapshots, epoch guards, and atomic transfer ownership RPC.
+- Merchant products: CRUD-backed catalog with certificate coupling and global catalog reads.
+- Service requests: migrated to Supabase with workflow-driven CRUD.
+- Marketplace: listings persist to Supabase; bids remain the last session-only layer.
+- Auth and authorization: real Supabase Auth plus RLS, with policy enforcement via supabase/rls_policies.sql.
 
-## Completed Phase 5 Work (Steps 1–8)
+## Architecture conventions
+- Repos own snapshot state, hydration, versioning, realtime subscriptions, and event emission.
+- Providers handle lifecycle only; consumers read through index accessors.
+- Writes are persist-first and should only update local state after Supabase confirms success.
+- Public surfaces must never expose email, wallet_address, or tx_hash.
 
-### Certificate Domain
-Registry: repo-owned module-scoped snapshot (Map<certId, RegisteredCertificate>), monotonic version, hydrate()/dispose, Realtime subscription. CertificateRegistryProvider mounts at root. getCertificateView() + /verify both read through getRegistryEntry(). USE_SUPABASE_CERTIFICATES = true.
+## Stage 6 roadmap
+1. Provenance ledger
+   - Create an append-only ownership_transfers table.
+   - Record every sale, transfer, and repair-related ownership event.
+   - Make history queryable from /library, /verify, and merchant dashboards.
+2. Blockchain verification
+   - Connect certificate ownership to verifiable on-chain proof.
+   - Distinguish private ownership state from public proof visibility.
+3. Anonymous public verification
+   - Offer a public read-only verification endpoint for buyers and third parties.
+   - Keep private identity fields out of public responses.
+4. Auth and repo hardening
+   - Move repo scoping from email-based logic to auth.uid-based logic.
+   - Close the remaining service request ownership gap.
+5. Marketplace completion
+   - Move marketplace bids to Supabase and remove the session-only overlay.
+   - Keep auction settlement and bid rules unchanged while making the history durable.
+6. Product and operations maturity
+   - Add updated_at and optimistic concurrency for merchant_products.
+   - Add analytics and audit logging around transfers, bids, and certificate issuance.
 
-Status: one-to-one snapshot with delete-on-active semantics (active = no row). Authoritative persist-first writes. Coupled-write wrappers (reportStolenEntry/reportLostEntry/clearStatusEntry) in index.ts — status-first authoritative, event best-effort. CertificateAnnotationsProvider hydrates status + events.
+## Suggested improvements
+- Add server-side role checks and owner metadata to service_requests.
+- Add a hydration-aware route guard for auction and library deep links.
+- Add structured event logging for purchase, transfer, and verification actions.
+- Add a lightweight admin console for provenance and dispute review.
+- Improve test coverage around RLS, transfer ownership, and marketplace bid persistence.
 
-Events: append-only Map<certId, CertificateEvent[]> + seenIds Set (load-bearing dedupe). Canonical order: created_at ASC, tie-break by id. INSERT-only Realtime. recordEventEntry routes ALL recordEvent callers.
-
-### Purchases Domain
-User-scoped snapshot: single PurchaseRecord[] (CURRENT USER ONLY — not Map<email,...>), snapshotEmail, seenIds, ownedProductIds (derived O(1) isOwned), epoch token for user-switch race guard.
-
-Atomic transfer RPC: transfer_ownership() in Postgres — SECURITY DEFINER, atomic delete-seller + insert-buyer, idempotent on payment_ref. Enforces invariants #2 (certificate_id verbatim) and #3 (non-empty payment ref).
-
-Epoch guard: hydrate(email) increments epoch; stale hydrate results discarded.
-
-Security limitation: email filtering is UX-only under fake auth + anon key. Not access-secured until RLS + real auth.
-
-OwnershipProvider: lifecycle + context bridge (snapshot in repo); same context API so ~9 consumers need zero changes.
-
-### Merchant Products Domain
-Flat Map<id, MerchantProduct> snapshot, global unfiltered Realtime (INSERT/UPDATE/DELETE), LWW update model.
-
-merchant-products-changed added to DomainEvent union.
-
-One-way create→cert coupling: product creation registers certificate first; cert-fail aborts product creation; product-fail after cert = orphan cert acceptable.
-
-merchantEmail → merchant_id mapping (multi-tenant groundwork). 13 consumer files rewired to index accessors.
-
-FK cascade verified: no ON DELETE CASCADE from merchant_products to purchases or certificates (invariant #7 safe at DB level).
-
-### /library Archive
-Bug fixed: was rendering global merchant catalog to every user. Rebuilt: reads from archiveRepo (global, read-only) returning ArchiveEntry view model. Archive = every purchases row with non-empty certificate_id, deduped to one per certificate_id.
-
-ArchiveEntry fields (public-safe): certificateId, productName, image, description, price, soldDate, authenticated, status. Never exposes: email, wallet_address, tx_hash.
-
-Reads product_image/product_description snapshot columns. Realtime deferred — hydrate-on-mount only.
-
-### /collection Image Snapshot Fix
-Purchase repo SELECT now includes product_image/product_description; PurchaseRecord type gains optional productImage/productDescription; /collection image resolution: snapshot first → live product fallback → empty.
-
----
-
-## Contract Design Decisions (for reference)
-
-### Exclusive Variant Model (Phase 7)
-Product = collection of manually-predetermined variants, each individually-certified, mint-on-sale, per-variant price/image/mini-page, "Sold" labels, "X/Y remaining", "Sold Out" flag, merchant-controlled visibility.
-
-### Scheduled Drop Lifecycle (Phase 7)
-Optional publish-at / retire-at timestamps per collection, manual override always wins, timers are convenience not rules, drops are not inherently seasonal, EST default timezone, visibility derived at read time (no background job).
-
-### Provenance Ownership Ledger (Phase 6)
-Append-only ownership_transfers table, built on real auth + RLS. Design alongside blockchain. Dependency chain: real auth → verified identity → blockchain proof → public verify surface.
-
-### Public Anonymous Ownership Verification (Phase 6)
-Dedicated public view/API, not public-read RLS on purchases. Opt-in anonymity tiers.
-
----
-
-## Full Roadmap
-| Phase | Scope |
-|-------|-------|
-| 5 🔄 | Supabase (service requests, marketplace, auth, RLS remaining) |
-| 6 | Provenance ledger, blockchain (Polygon), full /library provenance, public anonymous verification |
-| 7 | Multi-designer pivot (Stripe Connect, /designer/[slug]), variant model, drop lifecycle |
-| 8 | Designer service network (resize, routing to creating designer) |
-| 9 | Competitions (submissions, judging, winner certificates) |
-| 10 | Live auctions + stream integration (Supabase Realtime bidding) |
-| 11 | Designer website integration (verification widgets, product sync API) |
-| 12 | Production launch (Quebec: incorporate, GST/QST, Stripe live, Law 25, French) |
-
----
-
-## Known Limitations
-- localStorage per-device for unmigrated domains (service requests, marketplace)
-- Marketplace listings still in useState (lost on refresh)
-- Auction transfer RPC currently DELETES seller's purchase row (destroyed history) — replaced by provenance ledger in Phase 6
-- Provenance is permanent-in-DB (Phase 5) but not yet trustless (Phase 6 on-chain)
-- Shop product certificates: open question whether /shop items carry certificates at all
+## Known limitations
+- Marketplace bids are still session-backed until the Supabase migration is completed.
+- Service requests remain broader than ideal until ownership and role metadata are tightened.
+- Provenance is durable in the database but not yet trustless until blockchain proof is fully wired.
