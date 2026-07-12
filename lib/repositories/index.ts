@@ -24,8 +24,11 @@ import {
 } from "./supabase/serviceRequestRepo";
 import { supabaseMarketplaceRepo } from "./supabase/marketplaceRepo";
 import { supabaseArchiveRepo, type ArchiveEntry } from "./supabase/archiveRepo";
+import { supabaseOwnershipTransferRepo } from "./supabase/ownershipTransferRepo";
+import type { OwnershipTransferView } from "@/lib/ownership-transfers";
 
 export type { ArchiveEntry } from "./supabase/archiveRepo";
+export type { OwnershipTransferView } from "@/lib/ownership-transfers";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import {
   type MerchantProduct,
@@ -583,4 +586,26 @@ export async function hydrateArchive(): Promise<() => void> {
 
 export function archiveVersion(): number {
   return supabaseArchiveRepo.version();
+}
+
+// ---- Ownership transfers (Stage 6 append-only provenance): read accessors ----
+//
+// The public-safe provenance ledger. GLOBAL and read-only for consumers — the
+// snapshot holds only the OwnershipTransferView projection (never email/wallet).
+// Writes are NOT exposed here: the ledger row is written durably inside the
+// purchase transfer flow (transferOwnershipEntry → repo.record()), never by UI.
+// UI wiring (a provider + /verify surface) is the NEXT Stage 6 milestone.
+
+export function getOwnershipTransfersForCertificate(
+  certificateId: string
+): OwnershipTransferView[] {
+  return supabaseOwnershipTransferRepo.getByCertificate(certificateId);
+}
+
+export async function hydrateOwnershipTransfers(): Promise<() => void> {
+  return supabaseOwnershipTransferRepo.hydrate();
+}
+
+export function ownershipTransfersVersion(): number {
+  return supabaseOwnershipTransferRepo.version();
 }

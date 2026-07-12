@@ -8,6 +8,7 @@ export type DomainEvent =
   | "certificates-changed"
   | "merchant-products-changed"
   | "purchases-changed"
+  | "ownership-transfers-changed"
   | "auth-changed";
 
 export function emitDomainEvent(event: DomainEvent): void {

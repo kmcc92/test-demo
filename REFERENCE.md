@@ -5,16 +5,12 @@
 TEST is a multi-designer marketplace for blockchain-verified fashion pieces. Designers can sell, service, and prove ownership over time; buyers receive permanent certificates and public verification.
 
 ## Current state
-- Stage 5 is complete.
-- Stage 6 has begun.
+- Stage 5 is now the baseline.
+- Stage 6 is the active implementation focus.
 
-## What Stage 5 delivered
-- Certificate domain: registry, status, events, and public-safe library views.
-- Purchases: user-scoped ownership snapshots, epoch guards, and atomic transfer ownership RPC.
-- Merchant products: CRUD-backed catalog with certificate coupling and global catalog reads.
-- Service requests: migrated to Supabase with workflow-driven CRUD.
-- Marketplace: listings persist to Supabase; bids remain the last session-only layer.
-- Auth and authorization: real Supabase Auth plus RLS, with policy enforcement via supabase/rls_policies.sql.
+## Working baseline
+- Certificates, status, events, purchases, merchant products, and service requests are already wired through the repo and Supabase-backed path.
+- The remaining work is to harden provenance, transfer history, and public verification while keeping private data out of public views.
 
 ## Architecture conventions
 - Repos own snapshot state, hydration, versioning, realtime subscriptions, and event emission.

@@ -30,6 +30,7 @@
 // Lazy dynamic-import of the supabase client (Step 4 import-safety).
 
 import { emitDomainEvent } from "@/lib/domain-events";
+import { supabaseOwnershipTransferRepo } from "./ownershipTransferRepo";
 import type { PurchaseRecord } from "@/lib/purchase-storage";
 import type { SupabaseClient, RealtimeChannel } from "@supabase/supabase-js";
 
@@ -347,6 +348,34 @@ export const supabasePurchaseRepo: PurchaseSupabaseRepo = {
       p_product_desc: params.productDescription ?? null,
     });
     if (error) throw error;
+
+    // Persist the append-only ownership-transfer ledger row through its repo
+    // (persist-first, idempotent on the payment_ref PK). This runs AFTER the
+    // atomic transfer RPC — the RPC is the source of truth for ownership; the
+    // ledger is the public-safe provenance record layered on top.
+    //
+    // SOFT-LAUNCH TOLERANCE: the ownership_transfers table may not be migrated
+    // yet (42P01 undefined_table). Provenance is still provisional (CLAUDE.md),
+    // so a missing table must NEVER fail a completed transfer. Every OTHER
+    // ledger error rethrows. Remove this catch once the migration is applied and
+    // verified (supabase/ownership_transfers.sql).
+    try {
+      await supabaseOwnershipTransferRepo.record({
+        paymentRef: params.paymentRef,
+        certificateId: params.certificateId, // #2 verbatim
+        productId: params.productId,
+        productName: params.productName,
+        buyerEmail: params.buyerEmail,
+        sellerEmail: params.sellerEmail,
+        price: params.price,
+        buyerWallet: params.buyerWallet,
+        productImage: params.productImage,
+        productDescription: params.productDescription,
+      });
+    } catch (ledgerErr) {
+      if ((ledgerErr as { code?: string } | null)?.code !== "42P01") throw ledgerErr;
+    }
+
     epoch += 1; // invalidate in-flight pre-transfer hydrate; realtime delivers rows
   },
 };
